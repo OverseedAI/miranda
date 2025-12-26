@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useMemo } from "react";
 import { createRoot } from "react-dom/client";
+import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query";
 import SearchBar from "./components/SearchBar";
 import StatusBar from "./components/StatusBar";
 import ScoreChart from "./components/ScoreChart";
@@ -10,75 +11,48 @@ import ArticleGrid from "./components/ArticleGrid";
 import ArticleTable from "./components/ArticleTable";
 import ArticleDetail from "./components/ArticleDetail";
 import CrawlProgress from "./components/CrawlProgress";
+import ErrorBoundary from "./components/ErrorBoundary";
+import ErrorMessage from "./components/ErrorMessage";
+import {
+    ArticleGridSkeleton,
+    ArticleTableSkeleton,
+    ChartSkeleton,
+    StatusBarSkeleton,
+} from "./components/LoadingSkeleton";
+import {
+    useArticles,
+    useArticle,
+    useSearchArticles,
+    useStatus,
+    useTriggerCrawl,
+} from "./hooks/useArticles";
+import { useWebSocket } from "./hooks/useWebSocket";
+import type {
+    Article,
+    FilterState,
+    CrawlProgressState,
+    CrawlProgressMessage,
+    ViewMode,
+} from "./types";
+import { DEFAULT_ARTICLE_LIMIT } from "./utils/constants";
 
-// Type definitions per contract
-interface Article {
-    id: string;
-    title: string;
-    url: string;
-    source: string;
-    summary?: string;
-    isVideoWorthy: boolean;
-    score: number | null;
-    category: string | null;
-    crawledAt: string;
-}
+// Create a QueryClient instance
+const queryClient = new QueryClient({
+    defaultOptions: {
+        queries: {
+            retry: 2,
+            refetchOnWindowFocus: false,
+        },
+    },
+});
 
-interface ArticleDetail extends Article {
-    rawContent?: string;
-    publishedAt?: string;
-    analysisJson?: string;
-    analysis?: {
-        isVideoWorthy: boolean;
-        score: number;
-        category: string;
-        reasoning: string;
-        suggestedTitle?: string;
-        keyPoints: string[];
-        urgency: "breaking" | "timely" | "evergreen";
-    };
-}
+function AppContent() {
+    const queryClient = useQueryClient();
 
-interface Status {
-    scheduler: { isRunning: boolean; intervalMs: number };
-    config: { model: string; videoWorthyThreshold: number };
-}
-
-interface FilterState {
-    categories: string[];
-    urgencies: string[];
-    minScore: number;
-}
-
-interface CrawlProgressState {
-    isActive: boolean;
-    phase: string;
-    current: number;
-    total: number;
-}
-
-type CrawlProgressMessage =
-    | { type: "connected" }
-    | { type: "started"; timestamp: string }
-    | { type: "sources_crawled"; count: number }
-    | { type: "filtered"; newCount: number; duplicateCount: number }
-    | { type: "analyzing_article"; current: number; total: number; title: string }
-    | { type: "article_saved"; score: number; isVideoWorthy: boolean }
-    | {
-          type: "completed";
-          stats: { crawled: number; new: number; videoWorthy: number; alerted: number };
-          durationSeconds: number;
-      }
-    | { type: "error"; message: string; phase?: string };
-
-function App() {
-    // State management per contract
-    const [articles, setArticles] = useState<Article[]>([]);
-    const [selectedArticle, setSelectedArticle] = useState<ArticleDetail | null>(null);
-    const [status, setStatus] = useState<Status | null>(null);
-    const [loading, setLoading] = useState<boolean>(false);
-    const [searchQuery, setSearchQuery] = useState<string>("");
-    const [viewMode, setViewMode] = useState<"grid" | "table">("grid");
+    // Local UI state
+    const [searchQuery, setSearchQuery] = useState("");
+    const [viewMode, setViewMode] = useState<ViewMode>("grid");
+    const [selectedArticleId, setSelectedArticleId] = useState<string | null>(null);
     const [filters, setFilters] = useState<FilterState>({
         categories: [],
         urgencies: [],
@@ -90,82 +64,20 @@ function App() {
         current: 0,
         total: 0,
     });
-    const wsRef = useRef<WebSocket | null>(null);
 
-    // API Functions
-    const fetchArticles = async (videoWorthy?: boolean) => {
-        try {
-            setLoading(true);
-            const url =
-                videoWorthy !== undefined
-                    ? `/api/articles?videoWorthy=${videoWorthy}&limit=50`
-                    : "/api/articles?limit=50";
-            const response = await fetch(url);
-            if (!response.ok) throw new Error("Failed to fetch articles");
-            const data = await response.json();
-            setArticles(data.articles || []);
-        } catch (error) {
-            console.error("Error fetching articles:", error);
-        } finally {
-            setLoading(false);
-        }
-    };
+    // React Query hooks
+    const articlesQuery = useArticles({ limit: DEFAULT_ARTICLE_LIMIT });
+    const searchQuery_ = useSearchArticles(searchQuery, DEFAULT_ARTICLE_LIMIT);
+    const statusQuery = useStatus();
+    const articleDetailQuery = useArticle(selectedArticleId);
+    const triggerCrawlMutation = useTriggerCrawl();
 
-    const fetchArticleDetail = async (id: string) => {
-        try {
-            const response = await fetch(`/api/articles/${id}`);
-            if (!response.ok) throw new Error("Failed to fetch article detail");
-            const data = await response.json();
-            setSelectedArticle(data);
-        } catch (error) {
-            console.error("Error fetching article detail:", error);
-        }
-    };
-
-    const searchArticles = async (query: string) => {
-        try {
-            setLoading(true);
-            const response = await fetch(`/api/search?q=${encodeURIComponent(query)}&limit=50`);
-            if (!response.ok) throw new Error("Failed to search articles");
-            const data = await response.json();
-            setArticles(data.articles || []);
-        } catch (error) {
-            console.error("Error searching articles:", error);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const fetchStatus = async () => {
-        try {
-            const response = await fetch("/api/status");
-            if (!response.ok) throw new Error("Failed to fetch status");
-            const data = await response.json();
-            setStatus(data);
-        } catch (error) {
-            console.error("Error fetching status:", error);
-        }
-    };
-
-    const triggerCrawl = async () => {
-        try {
-            const response = await fetch("/api/crawl", { method: "POST" });
-            if (!response.ok) {
-                const data = await response.json();
-                throw new Error(data.error || "Failed to trigger crawl");
-            }
-            // Don't wait for completion - WebSocket will provide updates
-        } catch (error) {
-            console.error("Error triggering crawl:", error);
-            setLoading(false);
-            setCrawlProgress({
-                isActive: false,
-                phase: error instanceof Error ? `Error: ${error.message}` : "Error occurred",
-                current: 0,
-                total: 0,
-            });
-        }
-    };
+    // Determine which data to use based on search state
+    const {
+        data: articles = [],
+        isLoading: articlesLoading,
+        error: articlesError,
+    } = searchQuery ? searchQuery_ : articlesQuery;
 
     // WebSocket message handler
     const handleProgressMessage = (msg: CrawlProgressMessage) => {
@@ -176,7 +88,6 @@ function App() {
 
             case "started":
                 setCrawlProgress({ isActive: true, phase: "Starting crawl...", current: 0, total: 0 });
-                setLoading(true);
                 break;
 
             case "sources_crawled":
@@ -203,7 +114,6 @@ function App() {
                 break;
 
             case "article_saved":
-                // Progress already updated by analyzing_article
                 break;
 
             case "completed":
@@ -213,11 +123,10 @@ function App() {
                     current: msg.stats.new,
                     total: msg.stats.new,
                 });
-                setLoading(false);
 
-                // Refresh data
-                fetchArticles();
-                fetchStatus();
+                // Invalidate queries to refresh data
+                queryClient.invalidateQueries({ queryKey: ["articles"] });
+                queryClient.invalidateQueries({ queryKey: ["status"] });
 
                 // Hide progress after 3 seconds
                 setTimeout(() => {
@@ -233,132 +142,123 @@ function App() {
                     current: 0,
                     total: 0,
                 });
-                setLoading(false);
                 break;
         }
     };
 
-    // useEffect: Fetch articles and status on mount
-    useEffect(() => {
-        fetchArticles();
-        fetchStatus();
-    }, []);
-
-    // useEffect: WebSocket connection
-    useEffect(() => {
-        const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-        const ws = new WebSocket(`${protocol}//${window.location.host}/ws`);
-
-        ws.onopen = () => {
-            console.log("[WS] Connected");
-        };
-
-        ws.onmessage = (event) => {
-            try {
-                const message = JSON.parse(event.data);
-                handleProgressMessage(message);
-            } catch (error) {
-                console.error("[WS] Failed to parse message:", error);
-            }
-        };
-
-        ws.onerror = (error) => {
-            console.error("[WS] Error:", error);
-        };
-
-        ws.onclose = () => {
-            console.log("[WS] Disconnected");
-        };
-
-        wsRef.current = ws;
-
-        return () => {
-            ws.close();
-        };
-    }, []);
-
-    // Handle search
-    useEffect(() => {
-        if (searchQuery) {
-            searchArticles(searchQuery);
-        } else {
-            fetchArticles();
-        }
-    }, [searchQuery]);
-
-    // Filtering Logic
-    const filteredArticles = articles.filter((article) => {
-        // Category filter
-        if (filters.categories.length > 0 && !filters.categories.includes(article.category || "")) {
-            return false;
-        }
-
-        // Urgency filter
-        if (filters.urgencies.length > 0 && article.analysis) {
-            const urgency =
-                typeof article.analysis === "string"
-                    ? JSON.parse(article.analysis).urgency
-                    : article.analysis.urgency;
-            if (!filters.urgencies.includes(urgency)) {
-                return false;
-            }
-        }
-
-        // Min score filter
-        if (article.score !== null && article.score < filters.minScore) {
-            return false;
-        }
-
-        return true;
+    // WebSocket connection
+    useWebSocket({
+        onMessage: handleProgressMessage,
     });
 
-    // Handle article selection
-    const handleArticleSelect = async (article: Article) => {
-        await fetchArticleDetail(article.id);
+    // Memoized filtered articles
+    const filteredArticles = useMemo(() => {
+        return articles.filter((article) => {
+            // Category filter
+            if (filters.categories.length > 0 && !filters.categories.includes(article.category || "")) {
+                return false;
+            }
+
+            // Urgency filter
+            if (filters.urgencies.length > 0 && article.analysis) {
+                if (!filters.urgencies.includes(article.analysis.urgency)) {
+                    return false;
+                }
+            }
+
+            // Min score filter
+            if (article.score !== null && article.score < filters.minScore) {
+                return false;
+            }
+
+            return true;
+        });
+    }, [articles, filters]);
+
+    // Handler functions
+    const handleArticleSelect = (article: Article) => {
+        setSelectedArticleId(article.id);
     };
 
+    const handleTriggerCrawl = () => {
+        triggerCrawlMutation.mutate();
+    };
+
+    const isLoading = articlesLoading || crawlProgress.isActive;
+
     return (
-        <div className="max-w-7xl mx-auto px-4 py-6">
-            {/* Header - inline per contract */}
-            <header className="mb-6">
-                <div className="flex items-center justify-between mb-4">
-                    <h1 className="text-3xl font-bold text-gray-900">Article Analysis Dashboard</h1>
+        <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
+            {/* Header */}
+            <header className="mb-8">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+                    <h1 className="text-4xl font-bold text-gray-900">
+                        Article Analysis Dashboard
+                    </h1>
                     <button
-                        onClick={triggerCrawl}
-                        disabled={loading}
-                        className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                        onClick={handleTriggerCrawl}
+                        disabled={isLoading || triggerCrawlMutation.isPending}
+                        className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors font-medium shadow-sm"
                     >
-                        {loading ? "Crawling..." : "Trigger Crawl"}
+                        {isLoading || triggerCrawlMutation.isPending ? "Crawling..." : "Trigger Crawl"}
                     </button>
                 </div>
                 <SearchBar
                     value={searchQuery}
                     onChange={setSearchQuery}
-                    onSearch={() => searchArticles(searchQuery)}
-                    loading={loading}
+                    onSearch={() => {}}
+                    loading={articlesLoading}
                 />
             </header>
 
             {/* Status Bar */}
-            <StatusBar status={status} articleCount={articles.length} />
+            {statusQuery.isLoading ? (
+                <StatusBarSkeleton />
+            ) : statusQuery.error ? (
+                <ErrorMessage
+                    message="Failed to load status"
+                    onRetry={() => statusQuery.refetch()}
+                />
+            ) : (
+                <StatusBar status={statusQuery.data!} articleCount={articles.length} />
+            )}
 
             {/* Charts */}
-            <div className="grid grid-cols-2 gap-4 my-6">
-                <ScoreChart articles={filteredArticles} />
-                <SourceChart articles={filteredArticles} />
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 my-8">
+                {articlesLoading ? (
+                    <>
+                        <ChartSkeleton />
+                        <ChartSkeleton />
+                    </>
+                ) : (
+                    <>
+                        <ScoreChart articles={filteredArticles} />
+                        <SourceChart articles={filteredArticles} />
+                    </>
+                )}
             </div>
 
             {/* Filters and View Toggle */}
-            <div className="flex justify-between items-center mb-4">
+            <div className="flex flex-col lg:flex-row lg:justify-between lg:items-start gap-4 mb-6">
                 <Filters filters={filters} onChange={setFilters} />
                 <ViewToggle mode={viewMode} onChange={setViewMode} />
             </div>
 
-            {/* Loading State */}
-            {loading && <div className="text-center py-8 text-gray-600">Loading articles...</div>}
+            {/* Error State */}
+            {articlesError && (
+                <ErrorMessage
+                    message={articlesError instanceof Error ? articlesError.message : "Failed to load articles"}
+                    onRetry={() => articlesQuery.refetch()}
+                />
+            )}
 
             {/* Articles View */}
-            {!loading && (
+            {articlesLoading ? (
+                viewMode === "grid" ? (
+                    <ArticleGridSkeleton count={9} />
+                ) : (
+                    <ArticleTableSkeleton rows={10} />
+                )
+            ) : (
                 <>
                     {viewMode === "grid" ? (
                         <ArticleGrid articles={filteredArticles} onSelect={handleArticleSelect} />
@@ -369,8 +269,12 @@ function App() {
             )}
 
             {/* Article Detail Modal */}
-            {selectedArticle && (
-                <ArticleDetail article={selectedArticle} onClose={() => setSelectedArticle(null)} />
+            {selectedArticleId && articleDetailQuery.data && (
+                <ArticleDetail
+                    article={articleDetailQuery.data}
+                    onClose={() => setSelectedArticleId(null)}
+                    isLoading={articleDetailQuery.isLoading}
+                />
             )}
 
             {/* Crawl Progress Indicator */}
@@ -383,6 +287,16 @@ function App() {
                 />
             )}
         </div>
+    );
+}
+
+function App() {
+    return (
+        <ErrorBoundary>
+            <QueryClientProvider client={queryClient}>
+                <AppContent />
+            </QueryClientProvider>
+        </ErrorBoundary>
     );
 }
 

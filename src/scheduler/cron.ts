@@ -61,6 +61,7 @@ export async function runCrawlCycle(): Promise<CrawlStats> {
         // Step 3: Analyze each article for video-worthiness
         for (let i = 0; i < newArticles.length; i++) {
             const rawArticle = newArticles[i];
+            if (!rawArticle) continue;
 
             // Broadcast: Analyzing article
             broadcast({

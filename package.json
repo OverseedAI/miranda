@@ -29,6 +29,7 @@
         "@langchain/langgraph": "^1.0.7",
         "@slack/bolt": "^4.6.0",
         "@slack/web-api": "^7.13.0",
+        "@tanstack/react-query": "^5.90.12",
         "cheerio": "^1.1.2",
         "langchain": "^1.2.3",
         "react": "^19.2.3",

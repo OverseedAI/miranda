@@ -1,20 +1,6 @@
 import React, { useState } from "react";
-
-interface Article {
-    id: string;
-    title: string;
-    url: string;
-    source: string;
-    summary?: string;
-    isVideoWorthy: boolean;
-    score: number | null;
-    category: string | null;
-    crawledAt: string;
-    analysis?: {
-        urgency?: "breaking" | "timely" | "evergreen";
-        keyPoints?: string[];
-    };
-}
+import type { Article } from "../types";
+import { getRelativeTime, formatCategory } from "../utils/formatting";
 
 interface ArticleTableProps {
     articles: Article[];
@@ -30,29 +16,6 @@ function getScoreBadgeClass(score: number | null): string {
     if (score >= 60) return "bg-blue-100 text-blue-700";
     if (score >= 40) return "bg-yellow-100 text-yellow-700";
     return "bg-gray-100 text-gray-700";
-}
-
-function getRelativeTime(crawledAt: string): string {
-    const now = new Date();
-    const crawled = new Date(crawledAt);
-    const diffMs = now.getTime() - crawled.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMins / 60);
-    const diffDays = Math.floor(diffHours / 24);
-
-    if (diffMins < 1) return "just now";
-    if (diffMins < 60) return `${diffMins}m ago`;
-    if (diffHours < 24) return `${diffHours}h ago`;
-    if (diffDays === 1) return "1d ago";
-    return `${diffDays}d ago`;
-}
-
-function formatCategory(category: string | null): string {
-    if (!category) return "-";
-    return category
-        .split("_")
-        .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-        .join(" ");
 }
 
 export default function ArticleTable({ articles, onSelect }: ArticleTableProps) {
@@ -115,7 +78,7 @@ export default function ArticleTable({ articles, onSelect }: ArticleTableProps) 
     };
 
     return (
-        <div className="overflow-x-auto bg-white rounded-lg shadow">
+        <div className="overflow-x-auto bg-white rounded-xl shadow-sm border border-gray-100">
             <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                     <tr>
@@ -185,7 +148,7 @@ export default function ArticleTable({ articles, onSelect }: ArticleTableProps) 
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
                                 <div className="text-sm text-gray-700">
-                                    {formatCategory(article.category)}
+                                    {article.category ? formatCategory(article.category) : "-"}
                                 </div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">

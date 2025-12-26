@@ -1,42 +1,42 @@
 import React from "react";
+import type { Article } from "../types";
+import { SCORE_RANGES } from "../utils/constants";
 
 interface ScoreChartProps {
-    articles: Array<{ score: number | null }>;
+    articles: Article[];
 }
 
 export default function ScoreChart({ articles }: ScoreChartProps) {
     // Count articles by score range
-    const ranges = {
-        high: { label: "80-100 (High)", count: 0, color: "bg-green-500" },
-        medium: { label: "60-79 (Medium)", count: 0, color: "bg-blue-500" },
-        low: { label: "40-59 (Low)", count: 0, color: "bg-yellow-500" },
-        notWorthy: { label: "0-39 (Not Worthy)", count: 0, color: "bg-gray-500" },
+    const counts = {
+        high: 0,
+        medium: 0,
+        low: 0,
+        notWorthy: 0,
     };
 
     articles.forEach((article) => {
         const score = article.score;
         if (score === null || score === undefined) return;
 
-        if (score >= 80) ranges.high.count++;
-        else if (score >= 60) ranges.medium.count++;
-        else if (score >= 40) ranges.low.count++;
-        else ranges.notWorthy.count++;
+        if (score >= SCORE_RANGES.high.min) counts.high++;
+        else if (score >= SCORE_RANGES.medium.min) counts.medium++;
+        else if (score >= SCORE_RANGES.low.min) counts.low++;
+        else counts.notWorthy++;
     });
 
-    // Find max count for proportional scaling
-    const maxCount = Math.max(
-        ranges.high.count,
-        ranges.medium.count,
-        ranges.low.count,
-        ranges.notWorthy.count,
-        1 // Prevent division by zero
-    );
+    const maxCount = Math.max(...Object.values(counts), 1);
 
-    const rangeArray = [ranges.high, ranges.medium, ranges.low, ranges.notWorthy];
+    const rangeArray = [
+        { ...SCORE_RANGES.high, count: counts.high },
+        { ...SCORE_RANGES.medium, count: counts.medium },
+        { ...SCORE_RANGES.low, count: counts.low },
+        { ...SCORE_RANGES.notWorthy, count: counts.notWorthy },
+    ];
 
     return (
-        <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-2xl font-bold text-gray-800 mb-6">Score Distribution</h2>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+            <h2 className="text-xl font-bold text-gray-900 mb-6">Score Distribution</h2>
             <div className="space-y-4">
                 {rangeArray.map((range, index) => {
                     const widthPercent = (range.count / maxCount) * 100;

@@ -1,32 +1,15 @@
 import React, { useEffect } from "react";
+import type { ArticleDetail as ArticleDetailType } from "../types";
+import { getScoreColorClass, getUrgencyBadgeClass, formatDate } from "../utils/formatting";
+import { Skeleton } from "./LoadingSkeleton";
 
 interface ArticleDetailProps {
-    article: {
-        id: string;
-        title: string;
-        url: string;
-        source: string;
-        summary?: string;
-        rawContent?: string;
-        publishedAt?: string;
-        crawledAt: string;
-        isVideoWorthy: boolean;
-        score: number | null;
-        category: string | null;
-        analysis?: {
-            isVideoWorthy: boolean;
-            score: number;
-            category: string;
-            reasoning: string;
-            suggestedTitle?: string;
-            keyPoints: string[];
-            urgency: "breaking" | "timely" | "evergreen";
-        };
-    };
+    article: ArticleDetailType;
     onClose: () => void;
+    isLoading?: boolean;
 }
 
-export default function ArticleDetail({ article, onClose }: ArticleDetailProps) {
+export default function ArticleDetail({ article, onClose, isLoading = false }: ArticleDetailProps) {
     // Handle escape key
     useEffect(() => {
         const handleEscape = (e: KeyboardEvent) => {
@@ -50,43 +33,6 @@ export default function ArticleDetail({ article, onClose }: ArticleDetailProps) 
     const category = article.analysis?.category ?? article.category ?? "Uncategorized";
     const urgency = article.analysis?.urgency ?? "evergreen";
 
-    // Score color based on value
-    const getScoreColor = (score: number) => {
-        if (score >= 80) return "text-green-600";
-        if (score >= 60) return "text-blue-600";
-        if (score >= 40) return "text-yellow-600";
-        return "text-gray-600";
-    };
-
-    // Urgency badge color
-    const getUrgencyColor = (urgency: string) => {
-        switch (urgency) {
-            case "breaking":
-                return "bg-red-500 text-white";
-            case "timely":
-                return "bg-orange-500 text-white";
-            case "evergreen":
-                return "bg-green-500 text-white";
-            default:
-                return "bg-gray-500 text-white";
-        }
-    };
-
-    const formatDate = (dateString?: string) => {
-        if (!dateString) return "Unknown date";
-        try {
-            return new Date(dateString).toLocaleDateString("en-US", {
-                year: "numeric",
-                month: "long",
-                day: "numeric",
-                hour: "2-digit",
-                minute: "2-digit",
-            });
-        } catch {
-            return dateString;
-        }
-    };
-
     return (
         <div
             className="modal-backdrop fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
@@ -108,7 +54,11 @@ export default function ArticleDetail({ article, onClose }: ArticleDetailProps) 
                 {/* Content */}
                 <div className="p-8">
                     {/* Title */}
-                    <h1 className="text-4xl font-bold text-gray-900 mb-4 pr-12">{article.title}</h1>
+                    {isLoading ? (
+                        <Skeleton className="h-10 w-3/4 mb-4" />
+                    ) : (
+                        <h1 className="text-4xl font-bold text-gray-900 mb-4 pr-12">{article.title}</h1>
+                    )}
 
                     {/* Meta info row */}
                     <div className="flex flex-wrap items-center gap-3 mb-6 text-sm">
@@ -116,7 +66,7 @@ export default function ArticleDetail({ article, onClose }: ArticleDetailProps) 
                         <span className="text-gray-400">•</span>
                         <span className="text-gray-600">{formatDate(article.publishedAt)}</span>
                         <span
-                            className={`px-3 py-1 rounded-full text-xs font-semibold uppercase ${getUrgencyColor(
+                            className={`px-3 py-1 rounded-full text-xs font-semibold uppercase ${getUrgencyBadgeClass(
                                 urgency
                             )}`}
                         >
@@ -128,7 +78,7 @@ export default function ArticleDetail({ article, onClose }: ArticleDetailProps) 
                     <div className="flex items-center gap-6 mb-6">
                         <div className="flex items-center gap-2">
                             <span className="text-gray-600 font-medium">Score:</span>
-                            <span className={`text-5xl font-bold ${getScoreColor(score)}`}>
+                            <span className={`text-5xl font-bold ${getScoreColorClass(score)}`}>
                                 {score}
                             </span>
                         </div>

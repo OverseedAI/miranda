@@ -1,7 +1,8 @@
 import React from "react";
+import type { Article } from "../types";
 
 interface SourceChartProps {
-    articles: Array<{ source: string }>;
+    articles: Article[];
 }
 
 export default function SourceChart({ articles }: SourceChartProps) {
@@ -36,8 +37,8 @@ export default function SourceChart({ articles }: SourceChartProps) {
     ];
 
     return (
-        <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-2xl font-bold text-gray-800 mb-6">Articles by Source</h2>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+            <h2 className="text-xl font-bold text-gray-900 mb-6">Articles by Source</h2>
             <div className="space-y-4">
                 {sourceData.map((item, index) => {
                     const widthPercent = (item.count / maxCount) * 100;

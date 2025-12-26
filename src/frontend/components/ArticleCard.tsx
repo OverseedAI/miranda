@@ -1,68 +1,10 @@
 import React from "react";
-
-interface Article {
-    id: string;
-    title: string;
-    url: string;
-    source: string;
-    summary?: string;
-    isVideoWorthy: boolean;
-    score: number | null;
-    category: string | null;
-    crawledAt: string;
-    analysis?: {
-        urgency?: "breaking" | "timely" | "evergreen";
-        keyPoints?: string[];
-    };
-}
+import type { Article } from "../types";
+import { getScoreColor, getRelativeTime, formatCategory, getUrgencyColor } from "../utils/formatting";
 
 interface ArticleCardProps {
     article: Article;
     onClick: () => void;
-}
-
-function getScoreColor(score: number | null): string {
-    if (score === null) return "#6b7280";
-    if (score >= 80) return "#22c55e";
-    if (score >= 60) return "#3b82f6";
-    if (score >= 40) return "#eab308";
-    return "#6b7280";
-}
-
-function getRelativeTime(crawledAt: string): string {
-    const now = new Date();
-    const crawled = new Date(crawledAt);
-    const diffMs = now.getTime() - crawled.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMins / 60);
-    const diffDays = Math.floor(diffHours / 24);
-
-    if (diffMins < 1) return "just now";
-    if (diffMins < 60) return `${diffMins}m ago`;
-    if (diffHours < 24) return `${diffHours}h ago`;
-    if (diffDays === 1) return "1d ago";
-    return `${diffDays}d ago`;
-}
-
-function formatCategory(category: string | null): string {
-    if (!category) return "";
-    return category
-        .split("_")
-        .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-        .join(" ");
-}
-
-function getUrgencyColor(urgency?: "breaking" | "timely" | "evergreen"): string {
-    switch (urgency) {
-        case "breaking":
-            return "#ef4444";
-        case "timely":
-            return "#f59e0b";
-        case "evergreen":
-            return "#10b981";
-        default:
-            return "#9ca3af";
-    }
 }
 
 export default function ArticleCard({ article, onClick }: ArticleCardProps) {
@@ -74,11 +16,11 @@ export default function ArticleCard({ article, onClick }: ArticleCardProps) {
 
     return (
         <div
-            className="article-card bg-white rounded-lg shadow p-4 cursor-pointer hover:shadow-lg transition-shadow"
+            className="article-card bg-white rounded-xl shadow-sm border border-gray-100 p-5 cursor-pointer hover:shadow-xl hover:border-blue-200 transition-all duration-200"
             onClick={onClick}
         >
             {/* Title */}
-            <h3 className="font-semibold text-lg mb-2 line-clamp-2 hover:text-blue-600">
+            <h3 className="font-bold text-lg mb-3 line-clamp-2 text-gray-900 hover:text-blue-600 transition-colors">
                 {article.title}
             </h3>
 

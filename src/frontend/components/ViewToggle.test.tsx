@@ -18,8 +18,8 @@ test("ViewToggle highlights active mode", () => {
     const tableButton = buttons[1];
 
     // Grid should be active
-    expect(gridButton.className).toContain("bg-blue-600");
-    expect(tableButton.className).toContain("bg-white");
+    expect(gridButton?.className).toContain("bg-blue-600");
+    expect(tableButton?.className).toContain("bg-white");
 });
 
 test("ViewToggle calls onChange when clicked", () => {
@@ -33,6 +33,8 @@ test("ViewToggle calls onChange when clicked", () => {
     const buttons = container.querySelectorAll("button");
     const tableButton = buttons[1];
 
-    fireEvent.click(tableButton);
-    expect(mode).toBe("table");
+    if (tableButton) {
+        fireEvent.click(tableButton);
+    }
+    expect(mode as string).toBe("table");
 });

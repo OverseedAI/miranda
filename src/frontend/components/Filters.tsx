@@ -1,38 +1,12 @@
 import React from "react";
+import type { FilterState } from "../types";
+import { CATEGORIES, URGENCIES, URGENCY_COLORS, URGENCY_COLORS_ACTIVE } from "../utils/constants";
+import { formatCategory } from "../utils/formatting";
 
 interface FiltersProps {
-    filters: {
-        categories: string[];
-        urgencies: string[];
-        minScore: number;
-    };
-    onChange: (filters: FiltersProps["filters"]) => void;
+    filters: FilterState;
+    onChange: (filters: FilterState) => void;
 }
-
-const CATEGORIES = [
-    "major_product_launch",
-    "industry_impact",
-    "trending_viral",
-    "developer_tools",
-    "research_breakthrough",
-    "pricing_change",
-    "api_update",
-    "not_video_worthy",
-];
-
-const URGENCIES = ["breaking", "timely", "evergreen"];
-
-const URGENCY_COLORS = {
-    breaking: "bg-red-100 text-red-800 border-red-300 hover:bg-red-200",
-    timely: "bg-yellow-100 text-yellow-800 border-yellow-300 hover:bg-yellow-200",
-    evergreen: "bg-green-100 text-green-800 border-green-300 hover:bg-green-200",
-};
-
-const URGENCY_COLORS_ACTIVE = {
-    breaking: "bg-red-600 text-white border-red-600",
-    timely: "bg-yellow-600 text-white border-yellow-600",
-    evergreen: "bg-green-600 text-white border-green-600",
-};
 
 export default function Filters({ filters, onChange }: FiltersProps) {
     const toggleCategory = (category: string) => {
@@ -53,15 +27,8 @@ export default function Filters({ filters, onChange }: FiltersProps) {
         onChange({ ...filters, minScore });
     };
 
-    const formatCategoryName = (category: string) => {
-        return category
-            .split("_")
-            .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-            .join(" ");
-    };
-
     return (
-        <div className="space-y-4 p-4 bg-white border border-gray-200 rounded-lg">
+        <div className="space-y-4 p-5 bg-white border border-gray-200 rounded-xl shadow-sm">
             {/* Categories */}
             <div>
                 <h3 className="text-sm font-semibold text-gray-700 mb-2">Categories</h3>
@@ -78,7 +45,7 @@ export default function Filters({ filters, onChange }: FiltersProps) {
                                         : "bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200"
                                 }`}
                             >
-                                {formatCategoryName(category)}
+                                {formatCategory(category)}
                             </button>
                         );
                     })}
@@ -121,7 +88,7 @@ export default function Filters({ filters, onChange }: FiltersProps) {
                     min="0"
                     max="100"
                     value={filters.minScore}
-                    onChange={(e) => updateScore(Number(e.target.value))}
+                    onChange={(e) => updateScore(Number((e.target as HTMLInputElement).value))}
                     className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
                 />
                 <div className="flex justify-between text-xs text-gray-500 mt-1">
