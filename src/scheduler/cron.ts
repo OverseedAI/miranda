@@ -4,16 +4,19 @@ import { articlesRepo } from "../db/repositories/articles";
 import { sendVideoWorthyAlert } from "../slack/alerts";
 import { config } from "../config";
 import type { VideoWorthiness } from "../analysis/schemas";
+import { broadcast } from "../websocket/manager";
 
 let crawlInterval: ReturnType<typeof setInterval> | null = null;
 let isRunning = false;
 
-export async function runCrawlCycle(): Promise<{
+export interface CrawlStats {
     crawled: number;
     new: number;
     videoWorthy: number;
     alerted: number;
-}> {
+}
+
+export async function runCrawlCycle(): Promise<CrawlStats> {
     if (isRunning) {
         console.log("[Scheduler] Crawl already in progress, skipping");
         return { crawled: 0, new: 0, videoWorthy: 0, alerted: 0 };
@@ -26,16 +29,29 @@ export async function runCrawlCycle(): Promise<{
 
     const stats = { crawled: 0, new: 0, videoWorthy: 0, alerted: 0 };
 
+    // Broadcast: Crawl started
+    broadcast({ type: "started", timestamp: new Date().toISOString() });
+
     try {
         // Step 1: Crawl all sources
         const articles = await crawlAllSources();
         stats.crawled = articles.length;
         console.log(`[Scheduler] Crawled ${articles.length} total articles`);
 
+        // Broadcast: Sources crawled
+        broadcast({ type: "sources_crawled", count: articles.length });
+
         // Step 2: Filter out already-seen articles
         const newArticles = await filterNewArticles(articles);
         stats.new = newArticles.length;
         console.log(`[Scheduler] ${newArticles.length} new articles after dedup`);
+
+        // Broadcast: Articles filtered
+        broadcast({
+            type: "filtered",
+            newCount: newArticles.length,
+            duplicateCount: articles.length - newArticles.length,
+        });
 
         if (newArticles.length === 0) {
             console.log("[Scheduler] No new articles to process");
@@ -43,7 +59,17 @@ export async function runCrawlCycle(): Promise<{
         }
 
         // Step 3: Analyze each article for video-worthiness
-        for (const rawArticle of newArticles) {
+        for (let i = 0; i < newArticles.length; i++) {
+            const rawArticle = newArticles[i];
+
+            // Broadcast: Analyzing article
+            broadcast({
+                type: "analyzing_article",
+                current: i + 1,
+                total: newArticles.length,
+                title: rawArticle.title.slice(0, 100),
+            });
+
             console.log(`[Scheduler] Analyzing: ${rawArticle.title.slice(0, 50)}...`);
 
             let analysis: VideoWorthiness;
@@ -68,6 +94,13 @@ export async function runCrawlCycle(): Promise<{
                 analysisJson: JSON.stringify(analysis),
             });
 
+            // Broadcast: Article saved
+            broadcast({
+                type: "article_saved",
+                score: analysis.score,
+                isVideoWorthy: analysis.isVideoWorthy,
+            });
+
             // Step 5: Alert if video-worthy and above threshold
             if (analysis.isVideoWorthy && analysis.score >= config.videoWorthyThreshold) {
                 stats.videoWorthy++;
@@ -87,6 +120,12 @@ export async function runCrawlCycle(): Promise<{
         }
     } catch (error) {
         console.error("[Scheduler] Crawl cycle error:", error);
+
+        // Broadcast: Error occurred
+        broadcast({
+            type: "error",
+            message: error instanceof Error ? error.message : "Unknown error occurred",
+        });
     } finally {
         isRunning = false;
     }
@@ -97,6 +136,13 @@ export async function runCrawlCycle(): Promise<{
         `[Scheduler] Stats: ${stats.crawled} crawled, ${stats.new} new, ${stats.videoWorthy} video-worthy, ${stats.alerted} alerted`
     );
     console.log(`[Scheduler] Duration: ${elapsed}s\n`);
+
+    // Broadcast: Crawl completed
+    broadcast({
+        type: "completed",
+        stats,
+        durationSeconds: parseFloat(elapsed),
+    });
 
     return stats;
 }

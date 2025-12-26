@@ -35,6 +35,8 @@ test("hello world", () => {
 });
 ```
 
+Do not write frontend tests for components.
+
 ## Frontend
 
 Use HTML imports with `Bun.serve()`. Don't use `vite`. HTML imports fully support React, CSS, Tailwind.

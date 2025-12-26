@@ -4,6 +4,7 @@ import { startSlackBot, getSlackStatus } from "./slack/bot";
 import { articlesRepo } from "./db/repositories/articles";
 import { config, validateConfig } from "./config";
 import homepage from "./frontend/index.html";
+import { addConnection, removeConnection } from "./websocket/manager";
 
 // Validate configuration
 try {
@@ -56,8 +57,32 @@ const server = Bun.serve({
         "/api/crawl": {
             POST: async () => {
                 console.log("[API] Manual crawl triggered");
-                const stats = await runCrawlCycle();
-                return Response.json({ message: "Crawl complete", stats });
+
+                // Check if crawl is already running
+                const status = getSchedulerStatus();
+                if (status.isRunning) {
+                    return new Response(
+                        JSON.stringify({ error: "Crawl already in progress" }),
+                        {
+                            status: 409,
+                            headers: { "Content-Type": "application/json" },
+                        }
+                    );
+                }
+
+                // Start crawl asynchronously (don't await)
+                runCrawlCycle().catch((error) => {
+                    console.error("[API] Crawl error:", error);
+                });
+
+                // Return immediately with 202 Accepted
+                return new Response(
+                    JSON.stringify({ message: "Crawl started", status: "in_progress" }),
+                    {
+                        status: 202,
+                        headers: { "Content-Type": "application/json" },
+                    }
+                );
             },
         },
 
@@ -140,6 +165,22 @@ const server = Bun.serve({
                     })),
                 });
             },
+        },
+    },
+
+    // WebSocket handler for real-time crawl progress
+    websocket: {
+        open(ws) {
+            addConnection(ws);
+            ws.send(JSON.stringify({ type: "connected" }));
+        },
+
+        message(ws, message) {
+            // Optional: handle client->server messages if needed
+        },
+
+        close(ws) {
+            removeConnection(ws);
         },
     },
 
