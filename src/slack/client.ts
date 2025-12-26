@@ -7,5 +7,5 @@ export const slackClient = new WebClient(config.slackBotToken);
 export const ALERT_CHANNEL = config.slackAlertChannel;
 
 export function isSlackConfigured(): boolean {
-  return Boolean(config.slackBotToken && config.slackAppToken);
+    return Boolean(config.slackBotToken && config.slackAppToken);
 }

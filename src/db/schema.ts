@@ -1,8 +1,8 @@
 import { db } from "./client";
 
 export function initDatabase(): void {
-  // Articles table
-  db.exec(`
+    // Articles table
+    db.exec(`
     CREATE TABLE IF NOT EXISTS articles (
       id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
       url TEXT UNIQUE NOT NULL,
@@ -26,8 +26,8 @@ export function initDatabase(): void {
     )
   `);
 
-  // Indexes for common queries
-  db.exec(`
+    // Indexes for common queries
+    db.exec(`
     CREATE INDEX IF NOT EXISTS idx_articles_source ON articles(source);
     CREATE INDEX IF NOT EXISTS idx_articles_crawled_at ON articles(crawled_at);
     CREATE INDEX IF NOT EXISTS idx_articles_video_worthy ON articles(is_video_worthy);
@@ -35,8 +35,8 @@ export function initDatabase(): void {
     CREATE INDEX IF NOT EXISTS idx_articles_url ON articles(url);
   `);
 
-  // Conversation threads for Slack Q&A
-  db.exec(`
+    // Conversation threads for Slack Q&A
+    db.exec(`
     CREATE TABLE IF NOT EXISTS conversation_threads (
       id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
       slack_thread_ts TEXT UNIQUE NOT NULL,
@@ -47,8 +47,8 @@ export function initDatabase(): void {
     )
   `);
 
-  // Alert history
-  db.exec(`
+    // Alert history
+    db.exec(`
     CREATE TABLE IF NOT EXISTS alert_history (
       id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
       article_id TEXT NOT NULL,
@@ -59,9 +59,9 @@ export function initDatabase(): void {
     )
   `);
 
-  db.exec(`
+    db.exec(`
     CREATE INDEX IF NOT EXISTS idx_alert_history_article ON alert_history(article_id);
   `);
 
-  console.log("Database initialized successfully");
+    console.log("Database initialized successfully");
 }
