@@ -1,24 +1,12 @@
-import React, { useState, useMemo } from "react";
+import React, { useState } from "react";
 import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query";
-import SearchBar from "./components/SearchBar";
-import StatusBar from "./components/StatusBar";
-import ScoreChart from "./components/ScoreChart";
-import SourceChart from "./components/SourceChart";
-import Filters from "./components/Filters";
-import ViewToggle from "./components/ViewToggle";
-import ArticleGrid from "./components/ArticleGrid";
-import ArticleTable from "./components/ArticleTable";
-import ArticleDetail from "./components/ArticleDetail";
-import CrawlProgress from "./components/CrawlProgress";
+import Sidebar, { type Page } from "./components/Sidebar";
+import HomePage from "./pages/HomePage";
+import ArticlesPage from "./pages/ArticlesPage";
+import CrawlerPage from "./pages/CrawlerPage";
+import SettingsPage from "./pages/SettingsPage";
 import ErrorBoundary from "./components/ErrorBoundary";
-import ErrorMessage from "./components/ErrorMessage";
-import {
-    ArticleGridSkeleton,
-    ArticleTableSkeleton,
-    ChartSkeleton,
-    StatusBarSkeleton,
-} from "./components/LoadingSkeleton";
 import {
     useArticles,
     useArticle,
@@ -27,13 +15,7 @@ import {
     useTriggerCrawl,
 } from "./hooks/useArticles";
 import { useWebSocket } from "./hooks/useWebSocket";
-import type {
-    Article,
-    FilterState,
-    CrawlProgressState,
-    CrawlProgressMessage,
-    ViewMode,
-} from "./types";
+import type { Article, CrawlProgressState, CrawlProgressMessage } from "./types";
 import { DEFAULT_ARTICLE_LIMIT } from "./utils/constants";
 
 // Create a QueryClient instance
@@ -50,14 +32,9 @@ function AppContent() {
     const queryClient = useQueryClient();
 
     // Local UI state
+    const [currentPage, setCurrentPage] = useState<Page>("home");
     const [searchQuery, setSearchQuery] = useState("");
-    const [viewMode, setViewMode] = useState<ViewMode>("grid");
     const [selectedArticleId, setSelectedArticleId] = useState<string | null>(null);
-    const [filters, setFilters] = useState<FilterState>({
-        categories: [],
-        urgencies: [],
-        minScore: 0,
-    });
     const [crawlProgress, setCrawlProgress] = useState<CrawlProgressState>({
         isActive: false,
         phase: "Idle",
@@ -87,7 +64,12 @@ function AppContent() {
                 break;
 
             case "started":
-                setCrawlProgress({ isActive: true, phase: "Starting crawl...", current: 0, total: 0 });
+                setCrawlProgress({
+                    isActive: true,
+                    phase: "Starting crawl...",
+                    current: 0,
+                    total: 0,
+                });
                 break;
 
             case "sources_crawled":
@@ -151,141 +133,72 @@ function AppContent() {
         onMessage: handleProgressMessage,
     });
 
-    // Memoized filtered articles
-    const filteredArticles = useMemo(() => {
-        return articles.filter((article) => {
-            // Category filter
-            if (filters.categories.length > 0 && !filters.categories.includes(article.category || "")) {
-                return false;
-            }
-
-            // Urgency filter
-            if (filters.urgencies.length > 0 && article.analysis) {
-                if (!filters.urgencies.includes(article.analysis.urgency)) {
-                    return false;
-                }
-            }
-
-            // Min score filter
-            if (article.score !== null && article.score < filters.minScore) {
-                return false;
-            }
-
-            return true;
-        });
-    }, [articles, filters]);
-
     // Handler functions
     const handleArticleSelect = (article: Article) => {
         setSelectedArticleId(article.id);
     };
 
     const handleTriggerCrawl = () => {
-        triggerCrawlMutation.mutate();
+        console.log("[App] Trigger crawl button clicked");
+        triggerCrawlMutation.mutate(undefined, {
+            onError: (error: any) => {
+                // Show user-friendly error message
+                if (error?.status === 409) {
+                    alert("A crawl is already in progress. Please wait for it to complete.");
+                } else {
+                    alert(`Failed to start crawl: ${error?.message || "Unknown error"}`);
+                }
+            },
+        });
     };
 
     const isLoading = articlesLoading || crawlProgress.isActive;
 
     return (
-        <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
-            {/* Header */}
-            <header className="mb-8">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-                    <h1 className="text-4xl font-bold text-gray-900">
-                        Article Analysis Dashboard
-                    </h1>
-                    <button
-                        onClick={handleTriggerCrawl}
-                        disabled={isLoading || triggerCrawlMutation.isPending}
-                        className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors font-medium shadow-sm"
-                    >
-                        {isLoading || triggerCrawlMutation.isPending ? "Crawling..." : "Trigger Crawl"}
-                    </button>
-                </div>
-                <SearchBar
-                    value={searchQuery}
-                    onChange={setSearchQuery}
-                    onSearch={() => {}}
-                    loading={articlesLoading}
-                />
-            </header>
+        <div className="flex min-h-screen bg-gray-50">
+            {/* Sidebar */}
+            <Sidebar currentPage={currentPage} onPageChange={setCurrentPage} />
 
-            {/* Status Bar */}
-            {statusQuery.isLoading ? (
-                <StatusBarSkeleton />
-            ) : statusQuery.error ? (
-                <ErrorMessage
-                    message="Failed to load status"
-                    onRetry={() => statusQuery.refetch()}
-                />
-            ) : (
-                <StatusBar status={statusQuery.data!} articleCount={articles.length} />
-            )}
-
-            {/* Charts */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 my-8">
-                {articlesLoading ? (
-                    <>
-                        <ChartSkeleton />
-                        <ChartSkeleton />
-                    </>
-                ) : (
-                    <>
-                        <ScoreChart articles={filteredArticles} />
-                        <SourceChart articles={filteredArticles} />
-                    </>
+            {/* Main Content */}
+            <main className="ml-64 flex-1 p-8">
+                {currentPage === "home" && (
+                    <HomePage
+                        status={statusQuery.data}
+                        statusLoading={statusQuery.isLoading}
+                        statusError={statusQuery.error}
+                        articles={articles}
+                        articlesLoading={articlesLoading}
+                        onStatusRetry={() => statusQuery.refetch()}
+                    />
                 )}
-            </div>
 
-            {/* Filters and View Toggle */}
-            <div className="flex flex-col lg:flex-row lg:justify-between lg:items-start gap-4 mb-6">
-                <Filters filters={filters} onChange={setFilters} />
-                <ViewToggle mode={viewMode} onChange={setViewMode} />
-            </div>
+                {currentPage === "articles" && (
+                    <ArticlesPage
+                        articles={articles}
+                        articlesLoading={articlesLoading}
+                        articlesError={articlesError}
+                        searchQuery={searchQuery}
+                        onSearchChange={setSearchQuery}
+                        onArticlesRetry={() => articlesQuery.refetch()}
+                        articleDetail={articleDetailQuery.data}
+                        articleDetailLoading={articleDetailQuery.isLoading}
+                        selectedArticleId={selectedArticleId}
+                        onArticleSelect={handleArticleSelect}
+                        onArticleDetailClose={() => setSelectedArticleId(null)}
+                    />
+                )}
 
-            {/* Error State */}
-            {articlesError && (
-                <ErrorMessage
-                    message={articlesError instanceof Error ? articlesError.message : "Failed to load articles"}
-                    onRetry={() => articlesQuery.refetch()}
-                />
-            )}
+                {currentPage === "crawler" && (
+                    <CrawlerPage
+                        crawlProgress={crawlProgress}
+                        isLoading={isLoading}
+                        isMutationPending={triggerCrawlMutation.isPending}
+                        onTriggerCrawl={handleTriggerCrawl}
+                    />
+                )}
 
-            {/* Articles View */}
-            {articlesLoading ? (
-                viewMode === "grid" ? (
-                    <ArticleGridSkeleton count={9} />
-                ) : (
-                    <ArticleTableSkeleton rows={10} />
-                )
-            ) : (
-                <>
-                    {viewMode === "grid" ? (
-                        <ArticleGrid articles={filteredArticles} onSelect={handleArticleSelect} />
-                    ) : (
-                        <ArticleTable articles={filteredArticles} onSelect={handleArticleSelect} />
-                    )}
-                </>
-            )}
-
-            {/* Article Detail Modal */}
-            {selectedArticleId && articleDetailQuery.data && (
-                <ArticleDetail
-                    article={articleDetailQuery.data}
-                    onClose={() => setSelectedArticleId(null)}
-                    isLoading={articleDetailQuery.isLoading}
-                />
-            )}
-
-            {/* Crawl Progress Indicator */}
-            {crawlProgress.isActive && (
-                <CrawlProgress
-                    phase={crawlProgress.phase}
-                    current={crawlProgress.current}
-                    total={crawlProgress.total}
-                    isActive={crawlProgress.isActive}
-                />
-            )}
+                {currentPage === "settings" && <SettingsPage />}
+            </main>
         </div>
     );
 }

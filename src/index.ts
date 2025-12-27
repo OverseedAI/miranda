@@ -166,6 +166,17 @@ const server = Bun.serve({
                 });
             },
         },
+
+        // WebSocket endpoint for real-time crawl progress
+        "/ws": {
+            GET: (req) => {
+                const upgraded = server.upgrade(req);
+                if (!upgraded) {
+                    return new Response("WebSocket upgrade failed", { status: 400 });
+                }
+                return undefined;
+            },
+        },
     },
 
     // WebSocket handler for real-time crawl progress

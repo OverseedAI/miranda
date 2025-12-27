@@ -150,11 +150,9 @@ export async function runCrawlCycle(): Promise<CrawlStats> {
 
 export function startCrawlScheduler(): void {
     console.log(`[Scheduler] Starting with ${config.crawlIntervalMs / 1000 / 60 / 60}h interval`);
+    console.log(`[Scheduler] First crawl will run in ${config.crawlIntervalMs / 1000 / 60 / 60}h (use "Trigger Crawl" button to run manually)`);
 
-    // Run immediately on startup
-    runCrawlCycle().catch(console.error);
-
-    // Then run on interval
+    // Run on interval only (not immediately on startup)
     crawlInterval = setInterval(() => {
         runCrawlCycle().catch(console.error);
     }, config.crawlIntervalMs);
