@@ -25,11 +25,19 @@ export async function crawlAllSources(): Promise<RawArticle[]> {
     console.log(`Starting crawl of ${crawlers.length} sources...`);
     const startTime = Date.now();
 
-    // Run all crawlers in parallel with error handling
+    // Run all crawlers in parallel with error handling and timeout
     const results = await Promise.allSettled(
         crawlers.map(async ({ name, fn }) => {
             try {
-                const articles = await fn();
+                console.log(`[${name}] Starting crawl...`);
+                // Add 30 second timeout per crawler
+                const articles = await Promise.race([
+                    fn(),
+                    new Promise<never>((_, reject) =>
+                        setTimeout(() => reject(new Error("Timeout after 30s")), 30000)
+                    ),
+                ]);
+                console.log(`[${name}] Completed: ${articles.length} articles`);
                 return { name, articles };
             } catch (error) {
                 console.error(`[${name}] Failed:`, error);

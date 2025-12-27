@@ -61,13 +61,10 @@ const server = Bun.serve({
                 // Check if crawl is already running
                 const status = getSchedulerStatus();
                 if (status.isRunning) {
-                    return new Response(
-                        JSON.stringify({ error: "Crawl already in progress" }),
-                        {
-                            status: 409,
-                            headers: { "Content-Type": "application/json" },
-                        }
-                    );
+                    return new Response(JSON.stringify({ error: "Crawl already in progress" }), {
+                        status: 409,
+                        headers: { "Content-Type": "application/json" },
+                    });
                 }
 
                 // Start crawl asynchronously (don't await)

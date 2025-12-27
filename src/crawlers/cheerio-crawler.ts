@@ -48,7 +48,9 @@ export async function crawlWithCheerio(config: CrawlerConfig): Promise<RawArticl
 
         // Strategy 2: If no links found, try common article link patterns
         if (articleLinks.length === 0) {
-            console.log(`[${config.source}] No elements found with "${articleSelector}", trying alternative selectors...`);
+            console.log(
+                `[${config.source}] No elements found with "${articleSelector}", trying alternative selectors...`
+            );
 
             // Try h3 a, h2 a (common for article titles)
             const titleLinks = $("h3 a, h2 a");
@@ -81,12 +83,16 @@ export async function crawlWithCheerio(config: CrawlerConfig): Promise<RawArticl
             if (!articleUrl) continue;
 
             try {
-                console.log(`[${config.source}] [${i + 1}/${articleLinks.length}] Fetching: ${articleUrl.slice(0, 60)}...`);
+                console.log(
+                    `[${config.source}] [${i + 1}/${articleLinks.length}] Fetching: ${articleUrl.slice(0, 60)}...`
+                );
 
                 // Fetch individual article
                 const articleResponse = await fetch(articleUrl);
                 if (!articleResponse.ok) {
-                    console.log(`[${config.source}] HTTP ${articleResponse.status} for ${articleUrl}`);
+                    console.log(
+                        `[${config.source}] HTTP ${articleResponse.status} for ${articleUrl}`
+                    );
                     continue;
                 }
 
@@ -102,7 +108,9 @@ export async function crawlWithCheerio(config: CrawlerConfig): Promise<RawArticl
 
                 // Skip if filter is enabled and not AI-related
                 if (config.filterAI && !isAIRelated(extracted.content)) {
-                    console.log(`[${config.source}] Not AI-related, skipping: ${extracted.title.slice(0, 40)}`);
+                    console.log(
+                        `[${config.source}] Not AI-related, skipping: ${extracted.title.slice(0, 40)}`
+                    );
                     continue;
                 }
 

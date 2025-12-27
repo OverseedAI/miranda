@@ -40,9 +40,7 @@ export default function StatusBar({ status, articleCount, lastCrawl }: StatusBar
                 {/* Threshold */}
                 <div>
                     <span className="text-gray-500">Threshold:</span>{" "}
-                    <span className="font-medium">
-                        {status.config.videoWorthyThreshold}
-                    </span>
+                    <span className="font-medium">{status.config.videoWorthyThreshold}</span>
                 </div>
 
                 {/* Article Count */}

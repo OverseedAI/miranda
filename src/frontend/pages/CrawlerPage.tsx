@@ -33,9 +33,7 @@ export default function CrawlerPage({
             <div className="grid grid-cols-1 gap-6">
                 {/* Info Card */}
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
-                    <h2 className="text-lg font-semibold text-blue-900 mb-2">
-                        About the Crawler
-                    </h2>
+                    <h2 className="text-lg font-semibold text-blue-900 mb-2">About the Crawler</h2>
                     <p className="text-blue-800 mb-3">
                         The crawler automatically scans configured sources for new articles,
                         analyzes them for video-worthiness using AI, and stores the results in the
@@ -52,9 +50,7 @@ export default function CrawlerPage({
                 {/* Crawl Progress/Status */}
                 {hasProgress && (
                     <div>
-                        <h2 className="text-xl font-semibold text-gray-900 mb-4">
-                            Crawl Progress
-                        </h2>
+                        <h2 className="text-xl font-semibold text-gray-900 mb-4">Crawl Progress</h2>
                         <InlineCrawlProgress
                             phase={crawlProgress.phase}
                             current={crawlProgress.current}

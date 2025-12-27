@@ -5,8 +5,7 @@ import { REFETCH_INTERVAL } from "../utils/constants";
 
 // Query keys
 export const queryKeys = {
-    articles: (params?: { videoWorthy?: boolean; limit?: number }) =>
-        ["articles", params] as const,
+    articles: (params?: { videoWorthy?: boolean; limit?: number }) => ["articles", params] as const,
     article: (id: string) => ["article", id] as const,
     search: (query: string, limit: number) => ["search", query, limit] as const,
     status: () => ["status"] as const,

@@ -25,7 +25,9 @@ export default function ArticleGrid({ articles, onSelect }: ArticleGridProps) {
                     />
                 </svg>
                 <p className="text-gray-500 text-lg font-medium">No articles found</p>
-                <p className="text-gray-400 text-sm mt-1">Try adjusting your filters or search query</p>
+                <p className="text-gray-400 text-sm mt-1">
+                    Try adjusting your filters or search query
+                </p>
             </div>
         );
     }

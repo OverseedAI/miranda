@@ -14,16 +14,17 @@ Displays system status information in a horizontal bar.
 
 ```tsx
 <StatusBar
-  status={{
-    scheduler: { isRunning: true, intervalMs: 3600000 },
-    config: { model: "gpt-4", videoWorthyThreshold: 70 }
-  }}
-  articleCount={42}
-  lastCrawl="2025-12-25 10:00"
+    status={{
+        scheduler: { isRunning: true, intervalMs: 3600000 },
+        config: { model: "gpt-4", videoWorthyThreshold: 70 },
+    }}
+    articleCount={42}
+    lastCrawl="2025-12-25 10:00"
 />
 ```
 
 **Features:**
+
 - Green/gray indicator for running/idle scheduler
 - Automatic conversion of intervalMs to hours
 - Subtle gray background with small text
@@ -40,20 +41,16 @@ const [query, setQuery] = useState("");
 const [loading, setLoading] = useState(false);
 
 const handleSearch = async () => {
-  setLoading(true);
-  // Perform search...
-  setLoading(false);
+    setLoading(true);
+    // Perform search...
+    setLoading(false);
 };
 
-<SearchBar
-  value={query}
-  onChange={setQuery}
-  onSearch={handleSearch}
-  loading={loading}
-/>
+<SearchBar value={query} onChange={setQuery} onSearch={handleSearch} loading={loading} />;
 ```
 
 **Features:**
+
 - Search icon in input field
 - Enter key triggers search
 - Loading spinner in button when searching
@@ -68,10 +65,11 @@ Toggle between grid and table view modes.
 ```tsx
 const [viewMode, setViewMode] = useState<"grid" | "table">("grid");
 
-<ViewToggle mode={viewMode} onChange={setViewMode} />
+<ViewToggle mode={viewMode} onChange={setViewMode} />;
 ```
 
 **Features:**
+
 - Grid and table icons
 - Active state with blue background
 - Smooth transitions
@@ -85,24 +83,26 @@ Multi-select category and urgency filters with score slider.
 
 ```tsx
 const [filters, setFilters] = useState({
-  categories: [],
-  urgencies: [],
-  minScore: 0,
+    categories: [],
+    urgencies: [],
+    minScore: 0,
 });
 
-<Filters filters={filters} onChange={setFilters} />
+<Filters filters={filters} onChange={setFilters} />;
 ```
 
 **Features:**
+
 - Multi-select category pills
 - Color-coded urgency pills:
-  - Breaking: Red
-  - Timely: Yellow
-  - Evergreen: Green
+    - Breaking: Red
+    - Timely: Yellow
+    - Evergreen: Green
 - Score slider (0-100)
 - Active state shows blue for categories, colored for urgencies
 
 **Available Categories:**
+
 - major_product_launch
 - industry_impact
 - trending_viral
@@ -113,6 +113,7 @@ const [filters, setFilters] = useState({
 - not_video_worthy
 
 **Available Urgencies:**
+
 - breaking
 - timely
 - evergreen
@@ -128,6 +129,7 @@ bun test src/frontend/components/*.test.tsx
 ```
 
 **Test Coverage:**
+
 - Component rendering
 - User interactions (clicks, typing, keyboard events)
 - State updates
@@ -141,6 +143,7 @@ bun test src/frontend/components/*.test.tsx
 All components use Tailwind CSS classes. Ensure Tailwind is configured in your project.
 
 **Color Palette:**
+
 - Primary: Blue (blue-600)
 - Success: Green (green-500/600)
 - Warning: Yellow (yellow-600)
@@ -154,6 +157,7 @@ All components use Tailwind CSS classes. Ensure Tailwind is configured in your p
 All components are fully typed with TypeScript. Props are validated at compile time.
 
 **Type Safety:**
+
 - Strict mode enabled
 - All props have explicit types
 - No implicit any types

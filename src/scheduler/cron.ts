@@ -34,34 +34,49 @@ export async function runCrawlCycle(): Promise<CrawlStats> {
 
     try {
         // Step 1: Crawl all sources
+        console.log(`[Scheduler] Step 1: Calling crawlAllSources()...`);
         const articles = await crawlAllSources();
         stats.crawled = articles.length;
         console.log(`[Scheduler] Crawled ${articles.length} total articles`);
 
         // Broadcast: Sources crawled
+        console.log(`[Scheduler] Broadcasting sources_crawled...`);
         broadcast({ type: "sources_crawled", count: articles.length });
 
         // Step 2: Filter out already-seen articles
+        console.log(`[Scheduler] Step 2: Filtering out duplicates...`);
         const newArticles = await filterNewArticles(articles);
         stats.new = newArticles.length;
-        console.log(`[Scheduler] ${newArticles.length} new articles after dedup`);
+        const duplicates = articles.length - newArticles.length;
+        console.log(
+            `[Scheduler] ✨ Found ${newArticles.length} new articles, ${duplicates} already in database`
+        );
 
         // Broadcast: Articles filtered
         broadcast({
             type: "filtered",
             newCount: newArticles.length,
-            duplicateCount: articles.length - newArticles.length,
+            duplicateCount: duplicates,
         });
 
         if (newArticles.length === 0) {
-            console.log("[Scheduler] No new articles to process");
+            console.log("[Scheduler] ℹ️  No new articles to process - all were duplicates");
             return stats;
         }
 
         // Step 3: Analyze each article for video-worthiness
+        console.log(
+            `[Scheduler] Step 3: Analyzing ${newArticles.length} articles for video-worthiness...`
+        );
+
         for (let i = 0; i < newArticles.length; i++) {
             const rawArticle = newArticles[i];
             if (!rawArticle) continue;
+
+            console.log(`\n[Scheduler] 📊 Article ${i + 1}/${newArticles.length}`);
+            console.log(`[Scheduler]    Title: "${rawArticle.title}"`);
+            console.log(`[Scheduler]    Source: ${rawArticle.source}`);
+            console.log(`[Scheduler]    URL: ${rawArticle.url}`);
 
             // Broadcast: Analyzing article
             broadcast({
@@ -71,17 +86,26 @@ export async function runCrawlCycle(): Promise<CrawlStats> {
                 title: rawArticle.title.slice(0, 100),
             });
 
-            console.log(`[Scheduler] Analyzing: ${rawArticle.title.slice(0, 50)}...`);
-
             let analysis: VideoWorthiness;
             try {
+                console.log(`[Scheduler]    🤖 Calling AI for analysis...`);
                 analysis = await analyzeArticle(rawArticle);
+
+                console.log(`[Scheduler]    ✅ Analysis complete:`);
+                console.log(`[Scheduler]       Score: ${analysis.score}/100`);
+                console.log(
+                    `[Scheduler]       Video Worthy: ${analysis.isVideoWorthy ? "YES" : "NO"}`
+                );
+                console.log(`[Scheduler]       Category: ${analysis.category}`);
+                console.log(`[Scheduler]       Urgency: ${analysis.urgency}`);
+                console.log(`[Scheduler]       Reasoning: ${analysis.reasoning.slice(0, 100)}...`);
             } catch (error) {
-                console.error(`[Scheduler] Analysis failed:`, error);
+                console.error(`[Scheduler]    ❌ Analysis failed:`, error);
                 continue;
             }
 
             // Step 4: Store in database
+            console.log(`[Scheduler]    💾 Saving to database...`);
             const savedArticle = articlesRepo.insert({
                 url: rawArticle.url,
                 title: rawArticle.title,
@@ -106,14 +130,21 @@ export async function runCrawlCycle(): Promise<CrawlStats> {
             if (analysis.isVideoWorthy && analysis.score >= config.videoWorthyThreshold) {
                 stats.videoWorthy++;
                 console.log(
-                    `[Scheduler] Video-worthy (${analysis.score}): ${rawArticle.title.slice(0, 50)}`
+                    `[Scheduler]    🔔 Sending alert (score ${analysis.score} >= threshold ${config.videoWorthyThreshold})`
                 );
 
                 const alertSent = await sendVideoWorthyAlert(savedArticle, analysis);
                 if (alertSent) {
                     articlesRepo.markAsAlerted(savedArticle.id);
                     stats.alerted++;
+                    console.log(`[Scheduler]    ✅ Alert sent successfully`);
+                } else {
+                    console.log(`[Scheduler]    ⚠️  Alert failed to send`);
                 }
+            } else {
+                console.log(
+                    `[Scheduler]    ℹ️  No alert (score ${analysis.score} < threshold ${config.videoWorthyThreshold})`
+                );
             }
 
             // Small delay between analyses to avoid rate limits
@@ -132,11 +163,13 @@ export async function runCrawlCycle(): Promise<CrawlStats> {
     }
 
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-    console.log(`[Scheduler] ========== Crawl cycle complete ==========`);
-    console.log(
-        `[Scheduler] Stats: ${stats.crawled} crawled, ${stats.new} new, ${stats.videoWorthy} video-worthy, ${stats.alerted} alerted`
-    );
-    console.log(`[Scheduler] Duration: ${elapsed}s\n`);
+    console.log(`\n[Scheduler] ========== Crawl cycle complete ==========`);
+    console.log(`[Scheduler] ⏱️  Duration: ${elapsed}s`);
+    console.log(`[Scheduler] 📥 Total crawled: ${stats.crawled}`);
+    console.log(`[Scheduler] ✨ New articles: ${stats.new}`);
+    console.log(`[Scheduler] 🎥 Video-worthy: ${stats.videoWorthy}`);
+    console.log(`[Scheduler] 🔔 Alerts sent: ${stats.alerted}`);
+    console.log(`[Scheduler] ===================================================\n`);
 
     // Broadcast: Crawl completed
     broadcast({
@@ -150,7 +183,9 @@ export async function runCrawlCycle(): Promise<CrawlStats> {
 
 export function startCrawlScheduler(): void {
     console.log(`[Scheduler] Starting with ${config.crawlIntervalMs / 1000 / 60 / 60}h interval`);
-    console.log(`[Scheduler] First crawl will run in ${config.crawlIntervalMs / 1000 / 60 / 60}h (use "Trigger Crawl" button to run manually)`);
+    console.log(
+        `[Scheduler] First crawl will run in ${config.crawlIntervalMs / 1000 / 60 / 60}h (use "Trigger Crawl" button to run manually)`
+    );
 
     // Run on interval only (not immediately on startup)
     crawlInterval = setInterval(() => {

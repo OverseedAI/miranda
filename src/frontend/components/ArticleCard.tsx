@@ -1,6 +1,11 @@
 import React from "react";
 import type { Article } from "../types";
-import { getScoreColor, getRelativeTime, formatCategory, getUrgencyColor } from "../utils/formatting";
+import {
+    getScoreColor,
+    getRelativeTime,
+    formatCategory,
+    getUrgencyColor,
+} from "../utils/formatting";
 
 interface ArticleCardProps {
     article: Article;

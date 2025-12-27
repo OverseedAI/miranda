@@ -6,11 +6,7 @@ interface ErrorMessageProps {
     onRetry?: () => void;
 }
 
-export default function ErrorMessage({
-    title = "Error",
-    message,
-    onRetry,
-}: ErrorMessageProps) {
+export default function ErrorMessage({ title = "Error", message, onRetry }: ErrorMessageProps) {
     return (
         <div className="bg-red-50 border border-red-200 rounded-lg p-6">
             <div className="flex items-start gap-3">

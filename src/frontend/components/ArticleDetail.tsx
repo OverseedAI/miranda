@@ -57,7 +57,9 @@ export default function ArticleDetail({ article, onClose, isLoading = false }: A
                     {isLoading ? (
                         <Skeleton className="h-10 w-3/4 mb-4" />
                     ) : (
-                        <h1 className="text-4xl font-bold text-gray-900 mb-4 pr-12">{article.title}</h1>
+                        <h1 className="text-4xl font-bold text-gray-900 mb-4 pr-12">
+                            {article.title}
+                        </h1>
                     )}
 
                     {/* Meta info row */}

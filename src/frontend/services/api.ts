@@ -22,7 +22,7 @@ export class ApiError extends Error {
 // Base fetch wrapper with error handling
 async function fetchApi<T>(url: string, options?: RequestInit): Promise<T> {
     try {
-        console.log(`[fetchApi] Calling ${options?.method || 'GET'} ${url}`);
+        console.log(`[fetchApi] Calling ${options?.method || "GET"} ${url}`);
         const response = await fetch(url, options);
         console.log(`[fetchApi] Response status: ${response.status} ${response.statusText}`);
 
@@ -44,9 +44,7 @@ async function fetchApi<T>(url: string, options?: RequestInit): Promise<T> {
         if (error instanceof ApiError) {
             throw error;
         }
-        throw new ApiError(
-            error instanceof Error ? error.message : "An unknown error occurred"
-        );
+        throw new ApiError(error instanceof Error ? error.message : "An unknown error occurred");
     }
 }
 

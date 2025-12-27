@@ -4,23 +4,23 @@ import { ChatAnthropic } from "@langchain/anthropic";
 
 // Mock the ChatAnthropic class
 mock.module("@langchain/anthropic", () => ({
-  ChatAnthropic: mock(() => ({
-    withStructuredOutput: mock((schema: any) => ({
-      invoke: mock(async (prompt: string) => ({
-        title: "Test Article Title",
-        content: "This is the main article content.",
-        publishedAt: "2025-12-25T00:00:00Z",
-        author: "John Doe",
-      })),
+    ChatAnthropic: mock(() => ({
+        withStructuredOutput: mock((schema: any) => ({
+            invoke: mock(async (prompt: string) => ({
+                title: "Test Article Title",
+                content: "This is the main article content.",
+                publishedAt: "2025-12-25T00:00:00Z",
+                author: "John Doe",
+            })),
+        })),
     })),
-  })),
 }));
 
 describe("extractArticleWithLLM", () => {
-  const testURL = "https://example.com/article";
+    const testURL = "https://example.com/article";
 
-  test("should successfully extract article data from HTML", async () => {
-    const html = `
+    test("should successfully extract article data from HTML", async () => {
+        const html = `
       <html>
         <head><title>Test Article</title></head>
         <body>
@@ -33,17 +33,17 @@ describe("extractArticleWithLLM", () => {
       </html>
     `;
 
-    const result = await extractArticleWithLLM(html, testURL);
+        const result = await extractArticleWithLLM(html, testURL);
 
-    expect(result).not.toBeNull();
-    expect(result?.title).toBe("Test Article Title");
-    expect(result?.content).toBe("This is the main article content.");
-    expect(result?.publishedAt).toBe("2025-12-25T00:00:00Z");
-    expect(result?.author).toBe("John Doe");
-  });
+        expect(result).not.toBeNull();
+        expect(result?.title).toBe("Test Article Title");
+        expect(result?.content).toBe("This is the main article content.");
+        expect(result?.publishedAt).toBe("2025-12-25T00:00:00Z");
+        expect(result?.author).toBe("John Doe");
+    });
 
-  test("should handle HTML with script tags", async () => {
-    const html = `
+    test("should handle HTML with script tags", async () => {
+        const html = `
       <html>
         <head>
           <script>alert('should be removed');</script>
@@ -59,14 +59,14 @@ describe("extractArticleWithLLM", () => {
       </html>
     `;
 
-    const result = await extractArticleWithLLM(html, testURL);
+        const result = await extractArticleWithLLM(html, testURL);
 
-    // The function should not crash and should return a result
-    expect(result).not.toBeNull();
-  });
+        // The function should not crash and should return a result
+        expect(result).not.toBeNull();
+    });
 
-  test("should handle HTML with iframe and noscript tags", async () => {
-    const html = `
+    test("should handle HTML with iframe and noscript tags", async () => {
+        const html = `
       <html>
         <body>
           <iframe src="ads.html"></iframe>
@@ -79,12 +79,12 @@ describe("extractArticleWithLLM", () => {
       </html>
     `;
 
-    const result = await extractArticleWithLLM(html, testURL);
-    expect(result).not.toBeNull();
-  });
+        const result = await extractArticleWithLLM(html, testURL);
+        expect(result).not.toBeNull();
+    });
 
-  test("should truncate HTML longer than 50000 characters", async () => {
-    const longHTML = `
+    test("should truncate HTML longer than 50000 characters", async () => {
+        const longHTML = `
       <html>
         <body>
           <article>
@@ -95,21 +95,21 @@ describe("extractArticleWithLLM", () => {
       </html>
     `;
 
-    const result = await extractArticleWithLLM(longHTML, testURL);
+        const result = await extractArticleWithLLM(longHTML, testURL);
 
-    // Should not crash despite long input
-    expect(result).not.toBeNull();
-  });
+        // Should not crash despite long input
+        expect(result).not.toBeNull();
+    });
 
-  test("should handle empty HTML", async () => {
-    const result = await extractArticleWithLLM("", testURL);
+    test("should handle empty HTML", async () => {
+        const result = await extractArticleWithLLM("", testURL);
 
-    // Should return a result (the mock will provide default values)
-    expect(result).not.toBeNull();
-  });
+        // Should return a result (the mock will provide default values)
+        expect(result).not.toBeNull();
+    });
 
-  test("should handle HTML with only junk tags", async () => {
-    const html = `
+    test("should handle HTML with only junk tags", async () => {
+        const html = `
       <html>
         <script>code();</script>
         <style>body { }</style>
@@ -117,12 +117,12 @@ describe("extractArticleWithLLM", () => {
       </html>
     `;
 
-    const result = await extractArticleWithLLM(html, testURL);
-    expect(result).not.toBeNull();
-  });
+        const result = await extractArticleWithLLM(html, testURL);
+        expect(result).not.toBeNull();
+    });
 
-  test("should handle complex nested HTML", async () => {
-    const html = `
+    test("should handle complex nested HTML", async () => {
+        const html = `
       <html>
         <body>
           <nav>Navigation</nav>
@@ -146,24 +146,24 @@ describe("extractArticleWithLLM", () => {
       </html>
     `;
 
-    const result = await extractArticleWithLLM(html, testURL);
-    expect(result).not.toBeNull();
-    expect(result?.title).toBeTruthy();
-    expect(result?.content).toBeTruthy();
-  });
+        const result = await extractArticleWithLLM(html, testURL);
+        expect(result).not.toBeNull();
+        expect(result?.title).toBeTruthy();
+        expect(result?.content).toBeTruthy();
+    });
 
-  test("should pass URL to the model", async () => {
-    const html = "<html><body><p>Test</p></body></html>";
-    const customURL = "https://example.com/custom-article";
+    test("should pass URL to the model", async () => {
+        const html = "<html><body><p>Test</p></body></html>";
+        const customURL = "https://example.com/custom-article";
 
-    const result = await extractArticleWithLLM(html, customURL);
+        const result = await extractArticleWithLLM(html, customURL);
 
-    // The function should complete successfully
-    expect(result).not.toBeNull();
-  });
+        // The function should complete successfully
+        expect(result).not.toBeNull();
+    });
 
-  test("should handle HTML with special characters", async () => {
-    const html = `
+    test("should handle HTML with special characters", async () => {
+        const html = `
       <html>
         <body>
           <article>
@@ -175,12 +175,12 @@ describe("extractArticleWithLLM", () => {
       </html>
     `;
 
-    const result = await extractArticleWithLLM(html, testURL);
-    expect(result).not.toBeNull();
-  });
+        const result = await extractArticleWithLLM(html, testURL);
+        expect(result).not.toBeNull();
+    });
 
-  test("should handle malformed HTML", async () => {
-    const html = `
+    test("should handle malformed HTML", async () => {
+        const html = `
       <html>
         <body>
           <article>
@@ -192,34 +192,34 @@ describe("extractArticleWithLLM", () => {
       </html>
     `;
 
-    const result = await extractArticleWithLLM(html, testURL);
-    expect(result).not.toBeNull();
-  });
+        const result = await extractArticleWithLLM(html, testURL);
+        expect(result).not.toBeNull();
+    });
 });
 
 describe("extractArticleWithLLM error handling", () => {
-  test("should return null and log error when LLM fails", async () => {
-    // Create a mock that throws an error
-    const mockChatAnthropic = mock(() => {
-      throw new Error("API Error");
+    test("should return null and log error when LLM fails", async () => {
+        // Create a mock that throws an error
+        const mockChatAnthropic = mock(() => {
+            throw new Error("API Error");
+        });
+
+        // Temporarily replace the constructor
+        const originalConsoleError = console.error;
+        const errorLogs: any[] = [];
+        console.error = mock((...args: any[]) => {
+            errorLogs.push(args);
+        });
+
+        try {
+            // This test validates error handling behavior
+            const html = "<html><body><p>Test</p></body></html>";
+
+            // The current implementation should handle errors gracefully
+            // We're testing that it doesn't crash the application
+            expect(true).toBe(true);
+        } finally {
+            console.error = originalConsoleError;
+        }
     });
-
-    // Temporarily replace the constructor
-    const originalConsoleError = console.error;
-    const errorLogs: any[] = [];
-    console.error = mock((...args: any[]) => {
-      errorLogs.push(args);
-    });
-
-    try {
-      // This test validates error handling behavior
-      const html = "<html><body><p>Test</p></body></html>";
-
-      // The current implementation should handle errors gracefully
-      // We're testing that it doesn't crash the application
-      expect(true).toBe(true);
-    } finally {
-      console.error = originalConsoleError;
-    }
-  });
 });
