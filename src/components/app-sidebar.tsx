@@ -1,17 +1,13 @@
 import * as React from 'react';
 import {
     IconCamera,
-    IconChartBar,
     IconDashboard,
     IconFileAi,
     IconFileDescription,
-    IconFolder,
     IconListDetails,
-    IconScan,
+    IconRss,
     IconScanEye,
     IconSettings,
-    IconSpider,
-    IconUsers,
     IconWomanFilled,
 } from '@tabler/icons-react';
 import { NavMain } from '@/components/nav-main';
@@ -46,6 +42,11 @@ const data = {
             title: 'Scanner',
             url: '/app/scanner',
             icon: IconScanEye,
+        },
+        {
+            title: 'RSS',
+            url: '/app/rss',
+            icon: IconRss,
         },
     ],
     navClouds: [

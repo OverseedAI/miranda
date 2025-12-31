@@ -1,6 +1,4 @@
-import { IconCirclePlusFilled, IconMail, type Icon } from '@tabler/icons-react';
-
-import { Button } from '@/components/ui/button';
+import { type Icon } from '@tabler/icons-react';
 import {
     SidebarGroup,
     SidebarGroupContent,
@@ -47,7 +45,7 @@ export function NavMain({
                             <Link
                                 to={item.url}
                                 activeProps={{
-                                    className: 'bg-secondary text-secondary-foreground',
+                                    className: 'bg-gray-500 text-secondary-foreground font-bold',
                                 }}
                             >
                                 <SidebarMenuButton tooltip={item.title}>

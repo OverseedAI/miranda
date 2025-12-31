@@ -8,8 +8,17 @@
  * @module
  */
 
-import type * as getNews from "../getNews.js";
-import type * as startScan from "../startScan.js";
+import type * as crons from "../crons.js";
+import type * as node_aiAnalyzer from "../node/aiAnalyzer.js";
+import type * as node_articleProcessor from "../node/articleProcessor.js";
+import type * as node_rssParser from "../node/rssParser.js";
+import type * as services_articles from "../services/articles.js";
+import type * as services_logs from "../services/logs.js";
+import type * as services_queue from "../services/queue.js";
+import type * as services_rss from "../services/rss.js";
+import type * as services_scans from "../services/scans.js";
+import type * as services_watchdog from "../services/watchdog.js";
+import type * as types from "../types.js";
 
 import type {
   ApiFromModules,
@@ -18,8 +27,17 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
-  getNews: typeof getNews;
-  startScan: typeof startScan;
+  crons: typeof crons;
+  "node/aiAnalyzer": typeof node_aiAnalyzer;
+  "node/articleProcessor": typeof node_articleProcessor;
+  "node/rssParser": typeof node_rssParser;
+  "services/articles": typeof services_articles;
+  "services/logs": typeof services_logs;
+  "services/queue": typeof services_queue;
+  "services/rss": typeof services_rss;
+  "services/scans": typeof services_scans;
+  "services/watchdog": typeof services_watchdog;
+  types: typeof types;
 }>;
 
 /**

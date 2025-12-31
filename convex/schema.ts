@@ -7,24 +7,45 @@ import { v } from 'convex/values';
 // The schema provides more precise TypeScript types.
 export default defineSchema({
     scans: defineTable({
-        startedAt: v.string(),
         completedAt: v.optional(v.string()),
         status: v.string(),
+        options: v.object({
+            rssCount: v.number(),
+        }),
+        error: v.optional(v.string()),
+    }),
+    scanQueue: defineTable({
+        scanId: v.id('scans'),
+        status: v.string(),
+        list: v.array(v.id('articles')),
     }),
     scanLogs: defineTable({
         scanId: v.id('scans'),
         message: v.string(),
-        timestamp: v.string(),
-    }),
-    source: defineTable({
+    }).index('byScanId', ['scanId']),
+    rss: defineTable({
         name: v.string(),
-        url: v.string(),
-        description: v.string(),
+        htmlUrl: v.string(),
+        xmlUrl: v.string(),
+        type: v.string(),
     }),
     articles: defineTable({
         title: v.string(),
         url: v.string(),
-        sourceId: v.id('source'),
+        sourceId: v.string(),
         publishedAt: v.string(),
+        guid: v.string(),
+
+        status: v.string(),
+
+        summary: v.optional(v.string()),
+        score: v.optional(
+            v.object({
+                relevance: v.number(),
+                uniqueness: v.number(),
+                engagement: v.number(),
+                credibility: v.number(),
+            }),
+        ),
     }),
 });
