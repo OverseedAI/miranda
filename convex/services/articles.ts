@@ -162,6 +162,16 @@ export const getArticlesByStatus = query({
 });
 
 /**
+ * Gets all articles, sorted by publishedAt descending.
+ */
+export const getAllArticles = query({
+    args: {},
+    handler: async (ctx) => {
+        return await ctx.db.query('articles').order('desc').take(200);
+    },
+});
+
+/**
  * Gets recommended articles (high scores).
  */
 export const getRecommendedArticles = query({

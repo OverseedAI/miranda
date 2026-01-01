@@ -47,5 +47,7 @@ export default defineSchema({
                 credibility: v.number(),
             }),
         ),
-    }),
+    })
+        .index('byStatus', ['status'])
+        .searchIndex('searchTitle', { searchField: 'title' }),
 });

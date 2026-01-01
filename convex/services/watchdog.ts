@@ -2,7 +2,7 @@ import { internalAction, internalQuery } from '../_generated/server';
 import { v } from 'convex/values';
 import { internal } from '../_generated/api';
 import { ScanStatus, ScanQueueStatus } from '../types';
-import { Doc } from '../_generated/dataModel';
+import type { Doc } from '../_generated/dataModel';
 
 /**
  * Gets all currently running (non-completed) scans.

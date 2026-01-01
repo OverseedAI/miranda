@@ -5,7 +5,7 @@ import { v } from 'convex/values';
 import { components, internal } from '../_generated/api';
 import { Agent, createThread } from '@convex-dev/agent';
 import { openai } from '@ai-sdk/openai';
-import { Id } from '../_generated/dataModel';
+import type { Id } from '../_generated/dataModel';
 
 type AnalysisResult =
     | { status: 'skipped' }

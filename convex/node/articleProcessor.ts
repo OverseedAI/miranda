@@ -6,7 +6,7 @@ import { components, internal } from '../_generated/api';
 import { Agent, createThread, createTool } from '@convex-dev/agent';
 import { openai } from '@ai-sdk/openai';
 import { z } from 'zod';
-import { Id } from '../_generated/dataModel';
+import type { Id } from '../_generated/dataModel';
 
 type ProcessResult =
     | { status: 'completed' }

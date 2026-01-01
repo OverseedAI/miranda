@@ -4,7 +4,7 @@ import { internalAction } from '../_generated/server';
 import { v } from 'convex/values';
 import { internal } from '../_generated/api';
 import Parser from 'rss-parser';
-import { Doc, Id } from '../_generated/dataModel';
+import type { Doc, Id } from '../_generated/dataModel';
 
 const parser = new Parser();
 

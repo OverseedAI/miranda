@@ -11,6 +11,13 @@ export const getRss = query({
     },
 });
 
+export const getAllRss = query({
+    args: {},
+    handler: async (ctx) => {
+        return await ctx.db.query('rss').order('desc').collect();
+    },
+});
+
 export const createRss = mutation({
     args: {
         name: v.string(),
@@ -30,7 +37,50 @@ export const deleteRss = mutation({
         id: v.id('rss'),
     },
     handler: async (ctx, args) => {
-        await ctx.db.delete('rss', args.id);
+        await ctx.db.delete(args.id);
+    },
+});
+
+export const updateRss = mutation({
+    args: {
+        id: v.id('rss'),
+        name: v.string(),
+        htmlUrl: v.string(),
+        xmlUrl: v.string(),
+        type: v.string(),
+    },
+    handler: async (ctx, args) => {
+        const { id, ...data } = args;
+        await ctx.db.patch(id, data);
+    },
+});
+
+export const bulkCreateRss = mutation({
+    args: {
+        feeds: v.array(
+            v.object({
+                name: v.string(),
+                htmlUrl: v.string(),
+                xmlUrl: v.string(),
+                type: v.string(),
+            })
+        ),
+    },
+    handler: async (ctx, args) => {
+        const ids = [];
+        for (const feed of args.feeds) {
+            // Check if feed with same xmlUrl already exists
+            const existing = await ctx.db
+                .query('rss')
+                .filter((q) => q.eq(q.field('xmlUrl'), feed.xmlUrl))
+                .first();
+
+            if (!existing) {
+                const id = await ctx.db.insert('rss', feed);
+                ids.push(id);
+            }
+        }
+        return ids;
     },
 });
 
