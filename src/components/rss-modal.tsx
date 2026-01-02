@@ -1,9 +1,10 @@
-import { useMutation } from 'convex/react';
+import { useMutation, useQuery } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
     Dialog,
@@ -21,6 +22,7 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { useState, useEffect } from 'react';
+import { IconX } from '@tabler/icons-react';
 import type { Id } from '@/convex/_generated/dataModel';
 
 type RssFeed = {
@@ -29,6 +31,7 @@ type RssFeed = {
     type: string;
     htmlUrl: string;
     xmlUrl: string;
+    tags?: string[];
 };
 
 type RssModalProps = {
@@ -41,6 +44,7 @@ export function RssModal({ open, onOpenChange, editFeed }: RssModalProps) {
     const createRss = useMutation(api.services.rss.createRss);
     const updateRss = useMutation(api.services.rss.updateRss);
     const bulkCreateRss = useMutation(api.services.rss.bulkCreateRss);
+    const allTags = useQuery(api.services.rss.getAllTags);
 
     const [activeTab, setActiveTab] = useState<'single' | 'bulk'>('single');
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -50,6 +54,7 @@ export function RssModal({ open, onOpenChange, editFeed }: RssModalProps) {
     const [xmlUrl, setXmlUrl] = useState('');
     const [htmlUrl, setHtmlUrl] = useState('');
     const [type, setType] = useState('rss');
+    const [tags, setTags] = useState<string[]>([]);
 
     // Bulk import state
     const [bulkText, setBulkText] = useState('');
@@ -65,12 +70,14 @@ export function RssModal({ open, onOpenChange, editFeed }: RssModalProps) {
                 setXmlUrl(editFeed.xmlUrl);
                 setHtmlUrl(editFeed.htmlUrl);
                 setType(editFeed.type);
+                setTags(editFeed.tags ?? []);
                 setActiveTab('single');
             } else {
                 setName('');
                 setXmlUrl('');
                 setHtmlUrl('');
                 setType('rss');
+                setTags([]);
                 setBulkText('');
                 setBulkError(null);
             }
@@ -89,6 +96,7 @@ export function RssModal({ open, onOpenChange, editFeed }: RssModalProps) {
                     xmlUrl: xmlUrl.trim(),
                     htmlUrl: htmlUrl.trim() || xmlUrl.trim(),
                     type,
+                    tags: tags.length > 0 ? tags : undefined,
                 });
             } else {
                 await createRss({
@@ -96,6 +104,7 @@ export function RssModal({ open, onOpenChange, editFeed }: RssModalProps) {
                     xmlUrl: xmlUrl.trim(),
                     htmlUrl: htmlUrl.trim() || xmlUrl.trim(),
                     type,
+                    tags: tags.length > 0 ? tags : undefined,
                 });
             }
             onOpenChange(false);
@@ -213,6 +222,9 @@ export function RssModal({ open, onOpenChange, editFeed }: RssModalProps) {
                         setHtmlUrl={setHtmlUrl}
                         type={type}
                         setType={setType}
+                        tags={tags}
+                        setTags={setTags}
+                        allTags={allTags ?? []}
                     />
                 ) : (
                     <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'single' | 'bulk')}>
@@ -230,6 +242,9 @@ export function RssModal({ open, onOpenChange, editFeed }: RssModalProps) {
                                 setHtmlUrl={setHtmlUrl}
                                 type={type}
                                 setType={setType}
+                                tags={tags}
+                                setTags={setTags}
+                                allTags={allTags ?? []}
                             />
                         </TabsContent>
                         <TabsContent value="bulk" className="mt-4">
@@ -287,6 +302,9 @@ function SingleFeedForm({
     setHtmlUrl,
     type,
     setType,
+    tags,
+    setTags,
+    allTags,
 }: {
     name: string;
     setName: (v: string) => void;
@@ -296,7 +314,34 @@ function SingleFeedForm({
     setHtmlUrl: (v: string) => void;
     type: string;
     setType: (v: string) => void;
+    tags: string[];
+    setTags: (v: string[]) => void;
+    allTags: string[];
 }) {
+    const [tagInput, setTagInput] = useState('');
+
+    const handleAddTag = (tag: string) => {
+        const trimmed = tag.trim().toLowerCase();
+        if (trimmed && !tags.includes(trimmed)) {
+            setTags([...tags, trimmed]);
+        }
+        setTagInput('');
+    };
+
+    const handleRemoveTag = (tagToRemove: string) => {
+        setTags(tags.filter((t) => t !== tagToRemove));
+    };
+
+    const handleTagKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === 'Enter' || e.key === ',') {
+            e.preventDefault();
+            handleAddTag(tagInput);
+        }
+    };
+
+    // Filter suggestions to tags not already selected
+    const suggestions = allTags.filter((t) => !tags.includes(t) && t.includes(tagInput.toLowerCase()));
+
     return (
         <div className="space-y-4">
             <div className="space-y-2">
@@ -341,6 +386,50 @@ function SingleFeedForm({
                         <SelectItem value="json">JSON Feed</SelectItem>
                     </SelectContent>
                 </Select>
+            </div>
+            <div className="space-y-2">
+                <Label htmlFor="tags">Tags</Label>
+                {tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mb-2">
+                        {tags.map((tag) => (
+                            <Badge key={tag} variant="secondary" className="gap-1">
+                                {tag}
+                                <button
+                                    type="button"
+                                    onClick={() => handleRemoveTag(tag)}
+                                    className="ml-0.5 hover:text-destructive"
+                                >
+                                    <IconX className="size-3" />
+                                </button>
+                            </Badge>
+                        ))}
+                    </div>
+                )}
+                <Input
+                    id="tags"
+                    placeholder="Add tags (press Enter or comma)"
+                    value={tagInput}
+                    onChange={(e) => setTagInput(e.target.value)}
+                    onKeyDown={handleTagKeyDown}
+                    onBlur={() => tagInput.trim() && handleAddTag(tagInput)}
+                />
+                {suggestions.length > 0 && tagInput && (
+                    <div className="flex flex-wrap gap-1 mt-1">
+                        {suggestions.slice(0, 5).map((tag) => (
+                            <Badge
+                                key={tag}
+                                variant="outline"
+                                className="cursor-pointer hover:bg-accent"
+                                onClick={() => handleAddTag(tag)}
+                            >
+                                {tag}
+                            </Badge>
+                        ))}
+                    </div>
+                )}
+                <p className="text-xs text-muted-foreground">
+                    Tags help organize and filter feeds
+                </p>
             </div>
         </div>
     );

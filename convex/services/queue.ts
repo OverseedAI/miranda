@@ -30,7 +30,7 @@ export const getQueueByScanId = internalQuery({
     handler: async (ctx, args) => {
         return await ctx.db
             .query('scanQueue')
-            .filter((q) => q.eq(q.field('scanId'), args.scanId))
+            .withIndex('byScanId', (q) => q.eq('scanId', args.scanId))
             .first();
     },
 });
@@ -72,7 +72,7 @@ export const popNextArticle = internalMutation({
     handler: async (ctx, args) => {
         const queue = await ctx.db
             .query('scanQueue')
-            .filter((q) => q.eq(q.field('scanId'), args.scanId))
+            .withIndex('byScanId', (q) => q.eq('scanId', args.scanId))
             .first();
 
         if (!queue || queue.list.length === 0) {
@@ -106,7 +106,7 @@ export const getQueueLength = internalQuery({
     handler: async (ctx, args) => {
         const queue = await ctx.db
             .query('scanQueue')
-            .filter((q) => q.eq(q.field('scanId'), args.scanId))
+            .withIndex('byScanId', (q) => q.eq('scanId', args.scanId))
             .first();
 
         return queue?.list.length ?? 0;
@@ -138,7 +138,7 @@ export const cancelQueue = internalMutation({
     handler: async (ctx, args) => {
         const queue = await ctx.db
             .query('scanQueue')
-            .filter((q) => q.eq(q.field('scanId'), args.scanId))
+            .withIndex('byScanId', (q) => q.eq('scanId', args.scanId))
             .first();
 
         if (queue) {

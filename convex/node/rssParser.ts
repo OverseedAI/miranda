@@ -12,7 +12,7 @@ type Article = {
     title: string;
     url: string;
     publishedAt: string;
-    sourceId: string;
+    sourceId: Id<'rss'>;
     guid: string;
 };
 
@@ -21,15 +21,21 @@ type ParseFeedsResult = {
     articlesSaved: number;
 };
 
+const DEFAULT_DAYS_BACK = 7;
+const DEFAULT_PARALLELISM = 3;
+
 /**
  * Parses RSS feeds and creates articles in the database.
  * This is the first step in the scan pipeline.
- * After completion, it schedules the first article for processing.
+ * After completion, it schedules article processors based on parallelism setting.
  */
 export const parseFeeds = internalAction({
     args: {
         scanId: v.id('scans'),
         rssCount: v.number(),
+        daysBack: v.optional(v.number()),
+        parallelism: v.optional(v.number()),
+        filterTags: v.optional(v.array(v.string())),
     },
     returns: v.object({
         articlesFound: v.number(),
@@ -37,19 +43,31 @@ export const parseFeeds = internalAction({
     }),
     handler: async (ctx, args): Promise<ParseFeedsResult> => {
         const { scanId, rssCount } = args;
+        const daysBack = args.daysBack ?? DEFAULT_DAYS_BACK;
+        const parallelism = args.parallelism ?? DEFAULT_PARALLELISM;
+        const filterTags = args.filterTags ?? [];
 
+        const tagInfo = filterTags.length > 0 ? `, tags: [${filterTags.join(', ')}]` : '';
         await ctx.runMutation(internal.services.logs.createLog, {
             scanId,
-            message: 'Starting RSS feed parsing...',
+            message: `Starting RSS feed parsing (${daysBack} days back, parallelism: ${parallelism}${tagInfo})...`,
         });
 
-        // Get RSS feeds from database
-        const rssFeeds = await ctx.runQuery(internal.services.rss.getRssFeed, {
-            limit: rssCount,
-        });
+        // Get RSS feeds from database, optionally filtered by tags
+        const rssFeeds = filterTags.length > 0
+            ? await ctx.runQuery(internal.services.rss.getFeedsByTags, {
+                  tags: filterTags,
+                  limit: rssCount,
+              })
+            : await ctx.runQuery(internal.services.rss.getRssFeed, {
+                  limit: rssCount,
+              });
 
         // Parse all feeds
         const articles: Article[] = [];
+        let successCount = 0;
+        let failCount = 0;
+
         for (const feed of rssFeeds) {
             await ctx.runMutation(internal.services.logs.createLog, {
                 scanId,
@@ -62,19 +80,36 @@ export const parseFeeds = internalAction({
 
             try {
                 const feedData = await parser.parseURL(feed.xmlUrl);
-                const feedArticles = extractArticles(feed, feedData);
+                const feedArticles = extractArticles(feed, feedData, daysBack);
                 articles.push(...feedArticles);
+                successCount++;
+
+                // Update feed success status
+                await ctx.runMutation(internal.services.rss.updateFeedStatus, {
+                    feedId: feed._id,
+                    success: true,
+                });
             } catch (error) {
+                failCount++;
+                const errorMessage = (error as Error).message;
+
                 await ctx.runMutation(internal.services.logs.createLog, {
                     scanId,
-                    message: `Failed to parse feed ${feed.name}: ${(error as Error).message}`,
+                    message: `Failed to parse feed ${feed.name}: ${errorMessage}`,
+                });
+
+                // Update feed error status
+                await ctx.runMutation(internal.services.rss.updateFeedStatus, {
+                    feedId: feed._id,
+                    success: false,
+                    error: errorMessage,
                 });
             }
         }
 
         await ctx.runMutation(internal.services.logs.createLog, {
             scanId,
-            message: `Found ${articles.length} articles from RSS feeds.`,
+            message: `Parsed ${successCount} feeds (${failCount} failed). Found ${articles.length} articles.`,
         });
 
         // Save articles to database
@@ -85,7 +120,7 @@ export const parseFeeds = internalAction({
 
         await ctx.runMutation(internal.services.logs.createLog, {
             scanId,
-            message: `Inserted/Found ${articleIds.length} articles in the database.`,
+            message: `Created ${articleIds.length} new articles (${articles.length - articleIds.length} already existed).`,
         });
 
         // Create the processing queue
@@ -94,10 +129,12 @@ export const parseFeeds = internalAction({
             articleIds,
         });
 
-        // Update scan status to RUNNING
-        await ctx.runMutation(internal.services.scans.updateScanStatus, {
+        // Update scan status to RUNNING with progress tracking
+        await ctx.runMutation(internal.services.scans.updateScanProgress, {
             scanId,
             status: 'running',
+            totalArticles: articleIds.length,
+            processedArticles: 0,
         });
 
         await ctx.runMutation(internal.services.logs.createLog, {
@@ -105,10 +142,17 @@ export const parseFeeds = internalAction({
             message: 'Scan status updated to RUNNING. Starting article processing...',
         });
 
-        // Schedule the first article for processing (chain scheduling)
+        // Schedule article processors based on parallelism
         if (articleIds.length > 0) {
-            await ctx.scheduler.runAfter(0, internal.node.articleProcessor.processNextArticle, {
+            const processorsToStart = Math.min(parallelism, articleIds.length);
+            for (let i = 0; i < processorsToStart; i++) {
+                await ctx.scheduler.runAfter(i * 100, internal.node.articleProcessor.processNextArticle, {
+                    scanId,
+                });
+            }
+            await ctx.runMutation(internal.services.logs.createLog, {
                 scanId,
+                message: `Started ${processorsToStart} parallel article processors.`,
             });
         } else {
             // No articles to process, complete the scan
@@ -124,15 +168,19 @@ export const parseFeeds = internalAction({
 
 /**
  * Extracts articles from parsed RSS feed data.
- * Filters to only include articles from the last 7 days.
+ * Filters to only include articles from the specified number of days back.
  */
-function extractArticles(feed: Doc<'rss'>, feedData: Parser.Output<Record<string, unknown>>): Article[] {
-    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+function extractArticles(
+    feed: Doc<'rss'>,
+    feedData: Parser.Output<Record<string, unknown>>,
+    daysBack: number
+): Article[] {
+    const cutoffDate = new Date(Date.now() - daysBack * 24 * 60 * 60 * 1000);
 
     return feedData.items
         .filter((item) => {
             const date = item.pubDate ? new Date(item.pubDate) : null;
-            return date && date >= sevenDaysAgo;
+            return date && date >= cutoffDate;
         })
         .map((item) => ({
             title: item.title || 'No title',

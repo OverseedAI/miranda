@@ -21,6 +21,8 @@ import {
     IconTrash,
     IconPlus,
     IconPencil,
+    IconFilter,
+    IconX,
 } from '@tabler/icons-react';
 import { useEffect, useMemo, useState } from 'react';
 import type { Id } from '@/convex/_generated/dataModel';
@@ -38,13 +40,16 @@ type Feed = {
     type: string;
     htmlUrl: string;
     xmlUrl: string;
+    tags?: string[];
 };
 
 function RouteComponent() {
     const feeds = useQuery(api.services.rss.getAllRss);
+    const allTags = useQuery(api.services.rss.getAllTags);
     const deleteRss = useMutation(api.services.rss.deleteRss);
 
     const [search, setSearch] = useState('');
+    const [selectedTags, setSelectedTags] = useState<string[]>([]);
     const [currentPage, setCurrentPage] = useState(1);
     const [modalOpen, setModalOpen] = useState(false);
     const [editFeed, setEditFeed] = useState<Feed | null>(null);
@@ -54,6 +59,7 @@ function RouteComponent() {
 
         let result = [...feeds];
 
+        // Filter by search
         if (search.trim()) {
             const searchLower = search.toLowerCase();
             result = result.filter(
@@ -63,13 +69,31 @@ function RouteComponent() {
             );
         }
 
-        return result;
-    }, [feeds, search]);
+        // Filter by selected tags
+        if (selectedTags.length > 0) {
+            result = result.filter((f) => {
+                if (!f.tags || f.tags.length === 0) return false;
+                return selectedTags.some((tag) => f.tags!.includes(tag));
+            });
+        }
 
-    // Reset to page 1 when search changes
+        return result;
+    }, [feeds, search, selectedTags]);
+
+    // Reset to page 1 when search or tags change
     useEffect(() => {
         setCurrentPage(1);
-    }, [search]);
+    }, [search, selectedTags]);
+
+    const toggleTag = (tag: string) => {
+        setSelectedTags((prev) =>
+            prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
+        );
+    };
+
+    const clearTagFilter = () => {
+        setSelectedTags([]);
+    };
 
     const totalPages = Math.ceil(filteredFeeds.length / ITEMS_PER_PAGE);
     const paginatedFeeds = filteredFeeds.slice(
@@ -134,6 +158,37 @@ function RouteComponent() {
                 </Button>
             </div>
 
+            {/* Tag Filter */}
+            {allTags && allTags.length > 0 && (
+                <div className="flex flex-wrap items-center gap-2 mb-4">
+                    <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                        <IconFilter className="size-4" />
+                        <span>Filter:</span>
+                    </div>
+                    {allTags.map((tag: string) => (
+                        <Badge
+                            key={tag}
+                            variant={selectedTags.includes(tag) ? 'default' : 'outline'}
+                            className="cursor-pointer"
+                            onClick={() => toggleTag(tag)}
+                        >
+                            {tag}
+                        </Badge>
+                    ))}
+                    {selectedTags.length > 0 && (
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 px-2 text-xs"
+                            onClick={clearTagFilter}
+                        >
+                            <IconX className="size-3 mr-1" />
+                            Clear
+                        </Button>
+                    )}
+                </div>
+            )}
+
             {/* Feeds List */}
             {paginatedFeeds.length === 0 ? (
                 <div className="text-center py-12 text-muted-foreground">
@@ -193,9 +248,20 @@ function FeedRow({
 
             {/* Main content */}
             <div className="flex-1 min-w-0">
-                <h3 className="font-medium text-sm leading-tight line-clamp-1 group-hover:text-primary transition-colors">
-                    {feed.name}
-                </h3>
+                <div className="flex items-center gap-2">
+                    <h3 className="font-medium text-sm leading-tight line-clamp-1 group-hover:text-primary transition-colors">
+                        {feed.name}
+                    </h3>
+                    {feed.tags && feed.tags.length > 0 && (
+                        <div className="flex gap-1">
+                            {feed.tags.map((tag) => (
+                                <Badge key={tag} variant="secondary" className="text-xs px-1.5 py-0">
+                                    {tag}
+                                </Badge>
+                            ))}
+                        </div>
+                    )}
+                </div>
                 <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">
                     {feed.xmlUrl}
                 </p>

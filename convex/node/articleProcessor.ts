@@ -147,6 +147,11 @@ export const processNextArticle = internalAction({
                 content: extractedContent.slice(0, 10000), // Limit content size
             });
 
+            // Increment processed count
+            await ctx.runMutation(internal.services.scans.incrementProcessedArticles, {
+                scanId,
+            });
+
             // Schedule the AI analyzer for this article
             await ctx.scheduler.runAfter(0, internal.node.aiAnalyzer.analyzeArticle, {
                 scanId,

@@ -139,7 +139,7 @@ Respond with the JSON analysis.`,
             const scores = parseScores(result.text);
 
             if (scores) {
-                // Save the analysis results
+                // Save the analysis results including recommendation and videoAngle
                 await ctx.runMutation(internal.services.articles.updateArticleAnalysis, {
                     articleId,
                     summary: scores.summary,
@@ -149,6 +149,8 @@ Respond with the JSON analysis.`,
                         engagement: scores.engagement,
                         credibility: scores.credibility,
                     },
+                    recommendation: scores.recommendation || 'maybe',
+                    videoAngle: scores.videoAngle || '',
                     status: 'completed',
                 });
 
