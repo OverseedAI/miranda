@@ -167,12 +167,25 @@ export const getArticlesByStatus = query({
 });
 
 /**
- * Gets all articles, sorted by publishedAt descending.
+ * Gets all articles with source info, sorted by publishedAt descending.
  */
 export const getAllArticles = query({
     args: {},
     handler: async (ctx) => {
-        return await ctx.db.query('articles').order('desc').take(200);
+        const articles = await ctx.db.query('articles').order('desc').take(200);
+
+        // Fetch source names for all articles
+        const articlesWithSource = await Promise.all(
+            articles.map(async (article) => {
+                const source = await ctx.db.get(article.sourceId);
+                return {
+                    ...article,
+                    sourceName: source?.name ?? 'Unknown',
+                };
+            })
+        );
+
+        return articlesWithSource;
     },
 });
 

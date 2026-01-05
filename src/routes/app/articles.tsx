@@ -34,6 +34,7 @@ import {
     IconVideo,
     IconStar,
     IconStarFilled,
+    IconRss,
 } from '@tabler/icons-react';
 import { useEffect, useMemo, useState } from 'react';
 
@@ -237,6 +238,7 @@ type Article = {
     url: string;
     publishedAt: string;
     status: string;
+    sourceName: string;
     summary?: string;
     extractedContent?: string;
     recommendation?: string;
@@ -370,14 +372,20 @@ function ArticleRow({ article }: { article: Article }) {
                     <h3 className="font-medium text-sm leading-tight line-clamp-1 group-hover:text-primary transition-colors">
                         {article.title}
                     </h3>
-                    {hasScore && (
-                        <div className="flex gap-3 mt-1 text-xs text-muted-foreground">
-                            <ScoreChip icon={IconFlame} value={article.score!.relevance} label="Relevance" />
-                            <ScoreChip icon={IconSparkles} value={article.score!.uniqueness} label="Uniqueness" />
-                            <ScoreChip icon={IconUsers} value={article.score!.engagement} label="Engagement" />
-                            <ScoreChip icon={IconShieldCheck} value={article.score!.credibility} label="Credibility" />
-                        </div>
-                    )}
+                    <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
+                        <span className="flex items-center gap-1 shrink-0">
+                            <IconRss className="size-3" />
+                            <span className="max-w-32 truncate">{article.sourceName}</span>
+                        </span>
+                        {hasScore && (
+                            <>
+                                <ScoreChip icon={IconFlame} value={article.score!.relevance} label="Relevance" />
+                                <ScoreChip icon={IconSparkles} value={article.score!.uniqueness} label="Uniqueness" />
+                                <ScoreChip icon={IconUsers} value={article.score!.engagement} label="Engagement" />
+                                <ScoreChip icon={IconShieldCheck} value={article.score!.credibility} label="Credibility" />
+                            </>
+                        )}
+                    </div>
                 </div>
 
                 {/* Meta info */}

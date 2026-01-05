@@ -9,6 +9,7 @@ export default defineSchema({
             rssCount: v.number(),
             daysBack: v.optional(v.number()), // How many days back to scan (default 7)
             parallelism: v.optional(v.number()), // Number of parallel article processors (default 1)
+            filterTags: v.optional(v.array(v.string())), // Filter feeds by tags
         }),
         error: v.optional(v.string()),
         // Progress tracking

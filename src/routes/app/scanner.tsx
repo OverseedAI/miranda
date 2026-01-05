@@ -18,6 +18,7 @@ import {
     IconArticle,
     IconRss,
     IconBolt,
+    IconTag,
 } from '@tabler/icons-react';
 
 export const Route = createFileRoute('/app/scanner')({
@@ -29,11 +30,13 @@ function RouteComponent() {
     const [rssCount, setRssCount] = useState(10);
     const [daysBack, setDaysBack] = useState(7);
     const [parallelism, setParallelism] = useState(3);
+    const [selectedTags, setSelectedTags] = useState<string[]>([]);
 
     const queueScan = useMutation(api.services.scans.queueScan);
     const cancelScan = useMutation(api.services.scans.cancelScan);
     const runningScan = useQuery(api.services.scans.getRunningScan);
     const allScans = useQuery(api.services.scans.getAllScans);
+    const allTags = useQuery(api.services.rss.getAllTags);
     const failedArticles = useQuery(api.services.articles.getFailedArticles);
     const retryAllFailed = useMutation(api.services.articles.retryAllFailedArticles);
 
@@ -56,8 +59,15 @@ function RouteComponent() {
             daysBack,
             parallelism,
             delay: 1,
+            filterTags: selectedTags.length > 0 ? selectedTags : undefined,
         });
         setScanId(id);
+    };
+
+    const toggleTag = (tag: string) => {
+        setSelectedTags((prev) =>
+            prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
+        );
     };
 
     const handleCancelScan = async () => {
@@ -136,6 +146,45 @@ function RouteComponent() {
                         />
                     </div>
                 </div>
+
+                {/* Tag Filter */}
+                {allTags && allTags.length > 0 && (
+                    <div className="space-y-2">
+                        <Label className="flex items-center gap-2">
+                            <IconTag className="size-4" />
+                            Filter by Tags
+                            {selectedTags.length > 0 && (
+                                <span className="text-xs text-muted-foreground">
+                                    ({selectedTags.length} selected)
+                                </span>
+                            )}
+                        </Label>
+                        <div className="flex flex-wrap gap-2">
+                            {allTags.map((tag) => (
+                                <Badge
+                                    key={tag}
+                                    variant={selectedTags.includes(tag) ? 'default' : 'outline'}
+                                    className="cursor-pointer transition-colors"
+                                    onClick={() => !runningScan && toggleTag(tag)}
+                                >
+                                    {tag}
+                                </Badge>
+                            ))}
+                        </div>
+                        {selectedTags.length > 0 && (
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setSelectedTags([])}
+                                disabled={!!runningScan}
+                                className="text-xs h-6"
+                            >
+                                Clear all
+                            </Button>
+                        )}
+                    </div>
+                )}
+
                 <div className="flex gap-2">
                     {runningScan ? (
                         <Button variant="destructive" onClick={handleCancelScan}>
@@ -236,7 +285,7 @@ function ScanHistoryRow({
         _id: Id<'scans'>;
         _creationTime: number;
         status: string;
-        options: { rssCount: number; daysBack?: number; parallelism?: number };
+        options: { rssCount: number; daysBack?: number; parallelism?: number; filterTags?: string[] };
         totalArticles?: number;
         processedArticles?: number;
         completedAt?: string;
@@ -277,6 +326,12 @@ function ScanHistoryRow({
                             <span className="flex items-center gap-1">
                                 <IconArticle className="size-3" />
                                 {scan.processedArticles ?? 0}/{scan.totalArticles}
+                            </span>
+                        )}
+                        {scan.options.filterTags && scan.options.filterTags.length > 0 && (
+                            <span className="flex items-center gap-1">
+                                <IconTag className="size-3" />
+                                {scan.options.filterTags.join(', ')}
                             </span>
                         )}
                     </p>

@@ -13,6 +13,7 @@ export const queueScan = mutation({
         daysBack: v.optional(v.number()),
         parallelism: v.optional(v.number()),
         delay: v.optional(v.number()),
+        filterTags: v.optional(v.array(v.string())),
     },
     handler: async (ctx, args) => {
         // Check for running scans
@@ -29,6 +30,7 @@ export const queueScan = mutation({
                 rssCount: args.rssCount,
                 daysBack: args.daysBack,
                 parallelism: args.parallelism,
+                filterTags: args.filterTags,
             },
         });
 
@@ -41,6 +43,7 @@ export const queueScan = mutation({
                 rssCount: args.rssCount,
                 daysBack: args.daysBack,
                 parallelism: args.parallelism,
+                filterTags: args.filterTags,
             }
         );
 

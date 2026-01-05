@@ -13,6 +13,7 @@ import type * as node_aiAnalyzer from "../node/aiAnalyzer.js";
 import type * as node_articleProcessor from "../node/articleProcessor.js";
 import type * as node_rssParser from "../node/rssParser.js";
 import type * as node_slackService from "../node/slackService.js";
+import type * as prompts from "../prompts.js";
 import type * as services_articles from "../services/articles.js";
 import type * as services_autoScan from "../services/autoScan.js";
 import type * as services_logs from "../services/logs.js";
@@ -35,6 +36,7 @@ declare const fullApi: ApiFromModules<{
   "node/articleProcessor": typeof node_articleProcessor;
   "node/rssParser": typeof node_rssParser;
   "node/slackService": typeof node_slackService;
+  prompts: typeof prompts;
   "services/articles": typeof services_articles;
   "services/autoScan": typeof services_autoScan;
   "services/logs": typeof services_logs;
