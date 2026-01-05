@@ -11,6 +11,7 @@
 import type * as crons from "../crons.js";
 import type * as node_aiAnalyzer from "../node/aiAnalyzer.js";
 import type * as node_articleProcessor from "../node/articleProcessor.js";
+import type * as node_rssFeedFetcher from "../node/rssFeedFetcher.js";
 import type * as node_rssParser from "../node/rssParser.js";
 import type * as node_slackService from "../node/slackService.js";
 import type * as prompts from "../prompts.js";
@@ -34,6 +35,7 @@ declare const fullApi: ApiFromModules<{
   crons: typeof crons;
   "node/aiAnalyzer": typeof node_aiAnalyzer;
   "node/articleProcessor": typeof node_articleProcessor;
+  "node/rssFeedFetcher": typeof node_rssFeedFetcher;
   "node/rssParser": typeof node_rssParser;
   "node/slackService": typeof node_slackService;
   prompts: typeof prompts;
