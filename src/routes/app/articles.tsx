@@ -1,8 +1,18 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { useQuery } from 'convex/react';
+import { useMutation, useQuery } from 'convex/react';
 import { api } from '@/convex/_generated/api';
+import type { Id } from '@/convex/_generated/dataModel';
+import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -35,6 +45,7 @@ import {
     IconStar,
     IconStarFilled,
     IconRss,
+    IconTrash,
 } from '@tabler/icons-react';
 import { useEffect, useMemo, useState } from 'react';
 
@@ -253,6 +264,8 @@ type Article = {
 
 function ArticleRow({ article }: { article: Article }) {
     const [isExpanded, setIsExpanded] = useState(false);
+    const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+    const deleteArticle = useMutation(api.services.articles.deleteArticle);
     const hasScore = article.score !== undefined;
     const hasAnalysis = article.summary || article.recommendation || article.videoAngle;
     const avgScore = hasScore
@@ -416,8 +429,47 @@ function ArticleRow({ article }: { article: Article }) {
                             )}
                         </Button>
                     )}
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="size-8 text-muted-foreground hover:text-destructive"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            setShowDeleteDialog(true);
+                        }}
+                    >
+                        <IconTrash className="size-4" />
+                    </Button>
                 </div>
             </div>
+
+            {/* Delete Confirmation Dialog */}
+            <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+                <DialogContent showCloseButton={false}>
+                    <DialogHeader>
+                        <DialogTitle>Delete Article</DialogTitle>
+                        <DialogDescription>
+                            Are you sure you want to delete this article? This action cannot be undone.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="text-sm font-medium line-clamp-2">{article.title}</div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setShowDeleteDialog(false)}>
+                            Cancel
+                        </Button>
+                        <Button
+                            variant="destructive"
+                            onClick={async () => {
+                                await deleteArticle({ articleId: article._id as Id<'articles'> });
+                                setShowDeleteDialog(false);
+                                toast.success('Article deleted');
+                            }}
+                        >
+                            Delete
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
 
             {/* Expanded Details */}
             {isExpanded && hasAnalysis && (

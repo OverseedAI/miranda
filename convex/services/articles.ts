@@ -283,6 +283,19 @@ export const retryAllFailedArticles = mutation({
 });
 
 /**
+ * Deletes a single article.
+ */
+export const deleteArticle = mutation({
+    args: {
+        articleId: v.id('articles'),
+    },
+    handler: async (ctx, args) => {
+        await ctx.db.delete(args.articleId);
+        return { success: true };
+    },
+});
+
+/**
  * Gets articles by source RSS feed.
  */
 export const getArticlesBySource = query({
