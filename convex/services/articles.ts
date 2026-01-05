@@ -1,10 +1,12 @@
-import { internalMutation, internalQuery, query } from '../_generated/server';
+import { internalMutation, internalQuery, mutation, query } from '../_generated/server';
 import { v } from 'convex/values';
 import { ArticleStatus } from '../types';
+import type { Id } from '../_generated/dataModel';
 
 /**
  * Bulk creates articles from RSS feed data.
  * Skips articles that already exist (based on guid).
+ * Returns only NEW article IDs (not existing ones).
  */
 export const bulkCreateArticles = internalMutation({
     args: {
@@ -12,25 +14,24 @@ export const bulkCreateArticles = internalMutation({
             v.object({
                 title: v.string(),
                 url: v.string(),
-                sourceId: v.string(),
+                sourceId: v.id('rss'),
                 publishedAt: v.string(),
                 guid: v.string(),
             })
         ),
     },
     handler: async (ctx, args) => {
-        const articleIds = [];
+        const newArticleIds: Id<'articles'>[] = [];
 
         for (const article of args.articles) {
-            // Check if article already exists
+            // Check if article already exists using index
             const existingArticle = await ctx.db
                 .query('articles')
-                .filter((q) => q.eq(q.field('guid'), article.guid))
+                .withIndex('byGuid', (q) => q.eq('guid', article.guid))
                 .first();
 
             if (existingArticle) {
-                articleIds.push(existingArticle._id);
-                continue;
+                continue; // Skip existing articles
             }
 
             // Create new article
@@ -43,10 +44,10 @@ export const bulkCreateArticles = internalMutation({
                 status: ArticleStatus.PENDING,
             });
 
-            articleIds.push(id);
+            newArticleIds.push(id);
         }
 
-        return articleIds;
+        return newArticleIds;
     },
 });
 
@@ -90,7 +91,7 @@ export const updateArticleStatus = internalMutation({
 });
 
 /**
- * Updates an article's extracted content.
+ * Updates an article's extracted content (raw text from the article).
  */
 export const updateArticleContent = internalMutation({
     args: {
@@ -99,7 +100,7 @@ export const updateArticleContent = internalMutation({
     },
     handler: async (ctx, args) => {
         await ctx.db.patch(args.articleId, {
-            summary: args.content, // Using summary field for extracted content
+            extractedContent: args.content,
             status: ArticleStatus.PROCESSING,
         });
     },
@@ -118,12 +119,16 @@ export const updateArticleAnalysis = internalMutation({
             engagement: v.number(),
             credibility: v.number(),
         }),
+        recommendation: v.string(),
+        videoAngle: v.string(),
         status: v.string(),
     },
     handler: async (ctx, args) => {
         await ctx.db.patch(args.articleId, {
             summary: args.summary,
             score: args.score,
+            recommendation: args.recommendation,
+            videoAngle: args.videoAngle,
             status: args.status,
         });
     },
@@ -146,7 +151,7 @@ export const updateArticleSummary = internalMutation({
 });
 
 /**
- * Gets all articles for a scan (via their source).
+ * Gets articles by status using index.
  */
 export const getArticlesByStatus = query({
     args: {
@@ -155,19 +160,32 @@ export const getArticlesByStatus = query({
     handler: async (ctx, args) => {
         return await ctx.db
             .query('articles')
-            .filter((q) => q.eq(q.field('status'), args.status))
+            .withIndex('byStatus', (q) => q.eq('status', args.status))
             .order('desc')
             .take(100);
     },
 });
 
 /**
- * Gets all articles, sorted by publishedAt descending.
+ * Gets all articles with source info, sorted by publishedAt descending.
  */
 export const getAllArticles = query({
     args: {},
     handler: async (ctx) => {
-        return await ctx.db.query('articles').order('desc').take(200);
+        const articles = await ctx.db.query('articles').order('desc').take(200);
+
+        // Fetch source names for all articles
+        const articlesWithSource = await Promise.all(
+            articles.map(async (article) => {
+                const source = await ctx.db.get(article.sourceId);
+                return {
+                    ...article,
+                    sourceName: source?.name ?? 'Unknown',
+                };
+            })
+        );
+
+        return articlesWithSource;
     },
 });
 
@@ -179,7 +197,7 @@ export const getRecommendedArticles = query({
     handler: async (ctx) => {
         const articles = await ctx.db
             .query('articles')
-            .filter((q) => q.eq(q.field('status'), ArticleStatus.COMPLETED))
+            .withIndex('byStatus', (q) => q.eq('status', ArticleStatus.COMPLETED))
             .order('desc')
             .take(100);
 
@@ -195,5 +213,138 @@ export const getRecommendedArticles = query({
                     : 0;
                 return avgB - avgA;
             });
+    },
+});
+
+/**
+ * Gets failed articles for retry UI.
+ */
+export const getFailedArticles = query({
+    args: {},
+    handler: async (ctx) => {
+        return await ctx.db
+            .query('articles')
+            .withIndex('byStatus', (q) => q.eq('status', ArticleStatus.FAILED))
+            .order('desc')
+            .take(100);
+    },
+});
+
+/**
+ * Retries a single failed article by resetting its status.
+ */
+export const retryArticle = mutation({
+    args: {
+        articleId: v.id('articles'),
+    },
+    handler: async (ctx, args) => {
+        const article = await ctx.db.get(args.articleId);
+        if (!article || article.status !== ArticleStatus.FAILED) {
+            return { success: false, reason: 'Article not found or not failed' };
+        }
+
+        await ctx.db.patch(args.articleId, {
+            status: ArticleStatus.PENDING,
+            extractedContent: undefined,
+            summary: undefined,
+            score: undefined,
+            recommendation: undefined,
+            videoAngle: undefined,
+        });
+
+        return { success: true };
+    },
+});
+
+/**
+ * Retries all failed articles by resetting their status.
+ */
+export const retryAllFailedArticles = mutation({
+    args: {},
+    handler: async (ctx) => {
+        const failedArticles = await ctx.db
+            .query('articles')
+            .withIndex('byStatus', (q) => q.eq('status', ArticleStatus.FAILED))
+            .collect();
+
+        for (const article of failedArticles) {
+            await ctx.db.patch(article._id, {
+                status: ArticleStatus.PENDING,
+                extractedContent: undefined,
+                summary: undefined,
+                score: undefined,
+                recommendation: undefined,
+                videoAngle: undefined,
+            });
+        }
+
+        return { count: failedArticles.length };
+    },
+});
+
+/**
+ * Gets articles by source RSS feed.
+ */
+export const getArticlesBySource = query({
+    args: {
+        sourceId: v.id('rss'),
+    },
+    handler: async (ctx, args) => {
+        return await ctx.db
+            .query('articles')
+            .withIndex('bySourceId', (q) => q.eq('sourceId', args.sourceId))
+            .order('desc')
+            .take(100);
+    },
+});
+
+/**
+ * Gets recommended articles that haven't been sent to Slack yet.
+ * Returns articles sorted by average score descending.
+ */
+export const getUnnotifiedRecommendedArticles = internalQuery({
+    args: {
+        limit: v.number(),
+    },
+    handler: async (ctx, args) => {
+        const articles = await ctx.db
+            .query('articles')
+            .withIndex('byStatus', (q) => q.eq('status', ArticleStatus.COMPLETED))
+            .collect();
+
+        // Filter to recommended articles that haven't been notified
+        const filtered = articles.filter((a) => {
+            if (!a.score) return false;
+            if (a.slackNotifiedAt) return false;
+            return a.recommendation === 'highly_recommended' || a.recommendation === 'recommended';
+        });
+
+        // Sort by average score descending
+        const sorted = filtered.sort((a, b) => {
+            const avgA = a.score
+                ? (a.score.relevance + a.score.uniqueness + a.score.engagement + a.score.credibility) / 4
+                : 0;
+            const avgB = b.score
+                ? (b.score.relevance + b.score.uniqueness + b.score.engagement + b.score.credibility) / 4
+                : 0;
+            return avgB - avgA;
+        });
+
+        return sorted.slice(0, args.limit);
+    },
+});
+
+/**
+ * Marks articles as notified to Slack.
+ */
+export const markArticlesAsSlackNotified = internalMutation({
+    args: {
+        articleIds: v.array(v.id('articles')),
+    },
+    handler: async (ctx, args) => {
+        const now = new Date().toISOString();
+        for (const id of args.articleIds) {
+            await ctx.db.patch(id, { slackNotifiedAt: now });
+        }
     },
 });

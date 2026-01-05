@@ -10,7 +10,10 @@ import { ScanStatus } from '../types';
 export const queueScan = mutation({
     args: {
         rssCount: v.number(),
+        daysBack: v.optional(v.number()),
+        parallelism: v.optional(v.number()),
         delay: v.optional(v.number()),
+        filterTags: v.optional(v.array(v.string())),
     },
     handler: async (ctx, args) => {
         // Check for running scans
@@ -20,11 +23,14 @@ export const queueScan = mutation({
             throw new ConvexError('A scan is already running');
         }
 
-        // Create the scan record
+        // Create the scan record with all options
         const scanId = await ctx.db.insert('scans', {
             status: ScanStatus.INITIALIZING,
             options: {
                 rssCount: args.rssCount,
+                daysBack: args.daysBack,
+                parallelism: args.parallelism,
+                filterTags: args.filterTags,
             },
         });
 
@@ -35,6 +41,9 @@ export const queueScan = mutation({
             {
                 scanId,
                 rssCount: args.rssCount,
+                daysBack: args.daysBack,
+                parallelism: args.parallelism,
+                filterTags: args.filterTags,
             }
         );
 
@@ -124,6 +133,60 @@ export const updateScanStatus = internalMutation({
         }
 
         await ctx.db.patch(args.scanId, updates);
+    },
+});
+
+/**
+ * Updates scan progress (internal mutation for tracking).
+ */
+export const updateScanProgress = internalMutation({
+    args: {
+        scanId: v.id('scans'),
+        status: v.optional(v.string()),
+        totalArticles: v.optional(v.number()),
+        processedArticles: v.optional(v.number()),
+    },
+    handler: async (ctx, args) => {
+        const updates: {
+            status?: string;
+            totalArticles?: number;
+            processedArticles?: number;
+            completedAt?: string;
+        } = {};
+
+        if (args.status) {
+            updates.status = args.status;
+            if (args.status === ScanStatus.COMPLETED || args.status === 'completed') {
+                updates.completedAt = new Date().toISOString();
+            }
+        }
+
+        if (args.totalArticles !== undefined) {
+            updates.totalArticles = args.totalArticles;
+        }
+
+        if (args.processedArticles !== undefined) {
+            updates.processedArticles = args.processedArticles;
+        }
+
+        await ctx.db.patch(args.scanId, updates);
+    },
+});
+
+/**
+ * Increments the processed articles count.
+ */
+export const incrementProcessedArticles = internalMutation({
+    args: {
+        scanId: v.id('scans'),
+    },
+    handler: async (ctx, args) => {
+        const scan = await ctx.db.get(args.scanId);
+        if (!scan) return;
+
+        await ctx.db.patch(args.scanId, {
+            processedArticles: (scan.processedArticles ?? 0) + 1,
+        });
     },
 });
 

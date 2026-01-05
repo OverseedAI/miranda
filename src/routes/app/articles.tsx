@@ -29,6 +29,12 @@ import {
     IconShieldCheck,
     IconClock,
     IconSearch,
+    IconChevronDown,
+    IconChevronUp,
+    IconVideo,
+    IconStar,
+    IconStarFilled,
+    IconRss,
 } from '@tabler/icons-react';
 import { useEffect, useMemo, useState } from 'react';
 
@@ -40,11 +46,13 @@ const ITEMS_PER_PAGE = 20;
 
 type SortOption = 'date-desc' | 'date-asc' | 'score-desc' | 'score-asc';
 type StatusFilter = 'all' | 'pending' | 'processing' | 'completed' | 'failed';
+type RecommendationFilter = 'all' | 'highly_recommended' | 'recommended' | 'maybe' | 'not_recommended';
 
 function RouteComponent() {
     const articles = useQuery(api.services.articles.getAllArticles);
     const [search, setSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+    const [recommendationFilter, setRecommendationFilter] = useState<RecommendationFilter>('all');
     const [sortOption, setSortOption] = useState<SortOption>('date-desc');
     const [currentPage, setCurrentPage] = useState(1);
 
@@ -75,6 +83,11 @@ function RouteComponent() {
             result = result.filter((a) => a.status === statusFilter);
         }
 
+        // Filter by recommendation
+        if (recommendationFilter !== 'all') {
+            result = result.filter((a) => a.recommendation === recommendationFilter);
+        }
+
         // Sort
         result.sort((a, b) => {
             switch (sortOption) {
@@ -98,12 +111,12 @@ function RouteComponent() {
         });
 
         return result;
-    }, [articles, search, statusFilter, sortOption]);
+    }, [articles, search, statusFilter, recommendationFilter, sortOption]);
 
     // Reset to page 1 when filters change
     useEffect(() => {
         setCurrentPage(1);
-    }, [search, statusFilter, sortOption]);
+    }, [search, statusFilter, recommendationFilter, sortOption]);
 
     const totalPages = Math.ceil(filteredAndSortedArticles.length / ITEMS_PER_PAGE);
     const paginatedArticles = filteredAndSortedArticles.slice(
@@ -162,6 +175,21 @@ function RouteComponent() {
                         <SelectItem value="failed">Failed</SelectItem>
                     </SelectContent>
                 </Select>
+                <Select
+                    value={recommendationFilter}
+                    onValueChange={(v) => setRecommendationFilter(v as RecommendationFilter)}
+                >
+                    <SelectTrigger className="w-full sm:w-[180px]">
+                        <SelectValue placeholder="Recommendation" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="all">All Recommendations</SelectItem>
+                        <SelectItem value="highly_recommended">Highly Recommended</SelectItem>
+                        <SelectItem value="recommended">Recommended</SelectItem>
+                        <SelectItem value="maybe">Maybe</SelectItem>
+                        <SelectItem value="not_recommended">Not Recommended</SelectItem>
+                    </SelectContent>
+                </Select>
                 <Select value={sortOption} onValueChange={(v) => setSortOption(v as SortOption)}>
                     <SelectTrigger className="w-full sm:w-[160px]">
                         <SelectValue placeholder="Sort by" />
@@ -210,7 +238,11 @@ type Article = {
     url: string;
     publishedAt: string;
     status: string;
+    sourceName: string;
     summary?: string;
+    extractedContent?: string;
+    recommendation?: string;
+    videoAngle?: string;
     score?: {
         relevance: number;
         uniqueness: number;
@@ -220,7 +252,9 @@ type Article = {
 };
 
 function ArticleRow({ article }: { article: Article }) {
+    const [isExpanded, setIsExpanded] = useState(false);
     const hasScore = article.score !== undefined;
+    const hasAnalysis = article.summary || article.recommendation || article.videoAngle;
     const avgScore = hasScore
         ? (article.score!.relevance +
               article.score!.uniqueness +
@@ -270,6 +304,39 @@ function ArticleRow({ article }: { article: Article }) {
         }
     };
 
+    const getRecommendationBadge = (recommendation: string) => {
+        switch (recommendation) {
+            case 'highly_recommended':
+                return (
+                    <Badge className="bg-green-500 hover:bg-green-600 text-xs">
+                        <IconStarFilled className="size-3 mr-1" />
+                        Highly Recommended
+                    </Badge>
+                );
+            case 'recommended':
+                return (
+                    <Badge className="bg-blue-500 hover:bg-blue-600 text-xs">
+                        <IconStar className="size-3 mr-1" />
+                        Recommended
+                    </Badge>
+                );
+            case 'maybe':
+                return (
+                    <Badge variant="secondary" className="text-xs">
+                        Maybe
+                    </Badge>
+                );
+            case 'not_recommended':
+                return (
+                    <Badge variant="outline" className="text-xs text-muted-foreground">
+                        Not Recommended
+                    </Badge>
+                );
+            default:
+                return null;
+        }
+    };
+
     const formatDate = (dateStr: string) => {
         try {
             const date = new Date(dateStr);
@@ -283,51 +350,110 @@ function ArticleRow({ article }: { article: Article }) {
     };
 
     return (
-        <div className="flex items-center gap-3 p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors group">
-            {/* Score badge */}
-            <div className="shrink-0 w-12 text-center">
-                {avgScore !== null ? (
-                    <span className={`text-lg font-bold ${getScoreColor(avgScore)}`}>
-                        {avgScore.toFixed(1)}
-                    </span>
-                ) : (
-                    <span className="text-sm text-muted-foreground">—</span>
-                )}
-            </div>
+        <div className="rounded-lg border bg-card overflow-hidden">
+            {/* Main Row */}
+            <div
+                className={`flex items-center gap-3 p-3 transition-colors group ${hasAnalysis ? 'cursor-pointer hover:bg-accent/50' : ''}`}
+                onClick={() => hasAnalysis && setIsExpanded(!isExpanded)}
+            >
+                {/* Score badge */}
+                <div className="shrink-0 w-12 text-center">
+                    {avgScore !== null ? (
+                        <span className={`text-lg font-bold ${getScoreColor(avgScore)}`}>
+                            {avgScore.toFixed(1)}
+                        </span>
+                    ) : (
+                        <span className="text-sm text-muted-foreground">—</span>
+                    )}
+                </div>
 
-            {/* Main content */}
-            <div className="flex-1 min-w-0">
-                <h3 className="font-medium text-sm leading-tight line-clamp-1 group-hover:text-primary transition-colors">
-                    {article.title}
-                </h3>
-                {hasScore && (
-                    <div className="flex gap-3 mt-1 text-xs text-muted-foreground">
-                        <ScoreChip icon={IconFlame} value={article.score!.relevance} />
-                        <ScoreChip icon={IconSparkles} value={article.score!.uniqueness} />
-                        <ScoreChip icon={IconUsers} value={article.score!.engagement} />
-                        <ScoreChip icon={IconShieldCheck} value={article.score!.credibility} />
+                {/* Main content */}
+                <div className="flex-1 min-w-0">
+                    <h3 className="font-medium text-sm leading-tight line-clamp-1 group-hover:text-primary transition-colors">
+                        {article.title}
+                    </h3>
+                    <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
+                        <span className="flex items-center gap-1 shrink-0">
+                            <IconRss className="size-3" />
+                            <span className="max-w-32 truncate">{article.sourceName}</span>
+                        </span>
+                        {hasScore && (
+                            <>
+                                <ScoreChip icon={IconFlame} value={article.score!.relevance} label="Relevance" />
+                                <ScoreChip icon={IconSparkles} value={article.score!.uniqueness} label="Uniqueness" />
+                                <ScoreChip icon={IconUsers} value={article.score!.engagement} label="Engagement" />
+                                <ScoreChip icon={IconShieldCheck} value={article.score!.credibility} label="Credibility" />
+                            </>
+                        )}
                     </div>
-                )}
+                </div>
+
+                {/* Meta info */}
+                <div className="shrink-0 flex items-center gap-2">
+                    {article.recommendation && getRecommendationBadge(article.recommendation)}
+                    <span className="text-xs text-muted-foreground flex items-center gap-1">
+                        <IconClock className="size-3" />
+                        {formatDate(article.publishedAt)}
+                    </span>
+                    {getStatusBadge(article.status)}
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="size-8"
+                        asChild
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <a href={article.url} target="_blank" rel="noopener noreferrer">
+                            <IconExternalLink className="size-4" />
+                        </a>
+                    </Button>
+                    {hasAnalysis && (
+                        <Button variant="ghost" size="icon" className="size-8">
+                            {isExpanded ? (
+                                <IconChevronUp className="size-4" />
+                            ) : (
+                                <IconChevronDown className="size-4" />
+                            )}
+                        </Button>
+                    )}
+                </div>
             </div>
 
-            {/* Meta info */}
-            <div className="shrink-0 flex items-center gap-2">
-                <span className="text-xs text-muted-foreground flex items-center gap-1">
-                    <IconClock className="size-3" />
-                    {formatDate(article.publishedAt)}
-                </span>
-                {getStatusBadge(article.status)}
-                <Button variant="ghost" size="icon" className="size-8" asChild>
-                    <a href={article.url} target="_blank" rel="noopener noreferrer">
-                        <IconExternalLink className="size-4" />
-                    </a>
-                </Button>
-            </div>
+            {/* Expanded Details */}
+            {isExpanded && hasAnalysis && (
+                <div className="border-t bg-muted/30 p-4 space-y-3">
+                    {article.summary && (
+                        <div>
+                            <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">
+                                AI Summary
+                            </h4>
+                            <p className="text-sm">{article.summary}</p>
+                        </div>
+                    )}
+                    {article.videoAngle && (
+                        <div>
+                            <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1 flex items-center gap-1">
+                                <IconVideo className="size-3" />
+                                Video Angle
+                            </h4>
+                            <p className="text-sm text-primary">{article.videoAngle}</p>
+                        </div>
+                    )}
+                </div>
+            )}
         </div>
     );
 }
 
-function ScoreChip({ icon: Icon, value }: { icon: typeof IconFlame; value: number }) {
+function ScoreChip({
+    icon: Icon,
+    value,
+    label,
+}: {
+    icon: typeof IconFlame;
+    value: number;
+    label: string;
+}) {
     const getColor = (score: number) => {
         if (score >= 7) return 'text-green-500';
         if (score >= 5) return 'text-yellow-500';
@@ -335,7 +461,7 @@ function ScoreChip({ icon: Icon, value }: { icon: typeof IconFlame; value: numbe
     };
 
     return (
-        <span className="flex items-center gap-0.5">
+        <span className="flex items-center gap-0.5" title={label}>
             <Icon className="size-3" />
             <span className={getColor(value)}>{value}</span>
         </span>
