@@ -23,10 +23,12 @@ import {
     IconPencil,
     IconFilter,
     IconX,
+    IconEye,
 } from '@tabler/icons-react';
 import { useEffect, useMemo, useState } from 'react';
 import type { Id } from '@/convex/_generated/dataModel';
 import { RssModal } from '@/components/rss-modal';
+import { RssFeedViewer } from '@/components/rss-feed-viewer';
 
 export const Route = createFileRoute('/app/rss')({
     component: RouteComponent,
@@ -53,6 +55,8 @@ function RouteComponent() {
     const [currentPage, setCurrentPage] = useState(1);
     const [modalOpen, setModalOpen] = useState(false);
     const [editFeed, setEditFeed] = useState<Feed | null>(null);
+    const [viewerOpen, setViewerOpen] = useState(false);
+    const [viewFeed, setViewFeed] = useState<Feed | null>(null);
 
     const filteredFeeds = useMemo(() => {
         if (!feeds) return [];
@@ -109,6 +113,11 @@ function RouteComponent() {
     const handleEdit = (feed: Feed) => {
         setEditFeed(feed);
         setModalOpen(true);
+    };
+
+    const handleView = (feed: Feed) => {
+        setViewFeed(feed);
+        setViewerOpen(true);
     };
 
     const handleDelete = async (id: Id<'rss'>, name: string) => {
@@ -202,6 +211,7 @@ function RouteComponent() {
                         <FeedRow
                             key={feed._id}
                             feed={feed}
+                            onView={() => handleView(feed)}
                             onEdit={() => handleEdit(feed)}
                             onDelete={() => handleDelete(feed._id, feed.name)}
                         />
@@ -226,16 +236,28 @@ function RouteComponent() {
                 onOpenChange={setModalOpen}
                 editFeed={editFeed}
             />
+
+            {/* RSS Feed Viewer */}
+            {viewFeed && (
+                <RssFeedViewer
+                    open={viewerOpen}
+                    onOpenChange={setViewerOpen}
+                    feedName={viewFeed.name}
+                    xmlUrl={viewFeed.xmlUrl}
+                />
+            )}
         </div>
     );
 }
 
 function FeedRow({
     feed,
+    onView,
     onEdit,
     onDelete,
 }: {
     feed: Feed;
+    onView: () => void;
     onEdit: () => void;
     onDelete: () => void;
 }) {
@@ -272,8 +294,17 @@ function FeedRow({
                 <Badge variant="outline" className="text-xs">
                     {feed.type.toUpperCase()}
                 </Badge>
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    className="size-8 text-muted-foreground hover:text-foreground"
+                    onClick={onView}
+                    title="View feed contents"
+                >
+                    <IconEye className="size-4" />
+                </Button>
                 <Button variant="ghost" size="icon" className="size-8" asChild>
-                    <a href={feed.htmlUrl} target="_blank" rel="noopener noreferrer">
+                    <a href={feed.htmlUrl} target="_blank" rel="noopener noreferrer" title="Open website">
                         <IconExternalLink className="size-4" />
                     </a>
                 </Button>
@@ -282,6 +313,7 @@ function FeedRow({
                     size="icon"
                     className="size-8 text-muted-foreground hover:text-foreground"
                     onClick={onEdit}
+                    title="Edit feed"
                 >
                     <IconPencil className="size-4" />
                 </Button>
@@ -290,6 +322,7 @@ function FeedRow({
                     size="icon"
                     className="size-8 text-muted-foreground hover:text-destructive"
                     onClick={onDelete}
+                    title="Delete feed"
                 >
                     <IconTrash className="size-4" />
                 </Button>
