@@ -31,6 +31,7 @@ import {
     IconSparkles,
     IconUsers,
     IconShieldCheck,
+    IconBrandSlack,
 } from '@tabler/icons-react';
 import { useMemo } from 'react';
 import { Bar, BarChart, CartesianGrid, XAxis, Area, AreaChart, YAxis } from 'recharts';
@@ -46,6 +47,7 @@ type Article = {
     publishedAt: string;
     status: string;
     summary?: string;
+    slackNotifiedAt?: string;
     score?: {
         relevance: number;
         uniqueness: number;
@@ -91,6 +93,9 @@ function Dashboard() {
               }).length
             : 0;
 
+        // Calculate articles sent to Slack
+        const slackNotified = articles.filter((a) => a.slackNotifiedAt).length;
+
         return {
             total,
             completed,
@@ -100,6 +105,7 @@ function Dashboard() {
             avgScore,
             highScoreArticles,
             articlesFromLastScan,
+            slackNotified,
             completionRate: total > 0 ? (completed / total) * 100 : 0,
         };
     }, [articles, scans]);
@@ -192,14 +198,14 @@ function Dashboard() {
 
     if (articles === undefined || stats === null) {
         return (
-            <main className="p-8 flex flex-col gap-8">
-                <h1 className="text-3xl font-bold">Dashboard</h1>
-                <div className="grid grid-cols-1 gap-4 @xl/main:grid-cols-2 @5xl/main:grid-cols-4">
-                    {[1, 2, 3, 4].map((i) => (
+            <main className="p-4 sm:p-6 lg:p-8 flex flex-col gap-6 lg:gap-8">
+                <h1 className="text-2xl sm:text-3xl font-bold">Dashboard</h1>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+                    {[1, 2, 3, 4, 5].map((i) => (
                         <Skeleton key={i} className="h-32" />
                     ))}
                 </div>
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                     <Skeleton className="h-96" />
                     <Skeleton className="h-96" />
                 </div>
@@ -231,16 +237,16 @@ function Dashboard() {
     } satisfies ChartConfig;
 
     return (
-        <main className="p-8 flex flex-col gap-8">
-            <div className="flex items-center justify-between">
-                <h1 className="text-3xl font-bold">Dashboard</h1>
-                <Badge variant="outline">
+        <main className="p-4 sm:p-6 lg:p-8 flex flex-col gap-6 lg:gap-8">
+            <div className="flex items-center justify-between gap-4">
+                <h1 className="text-2xl sm:text-3xl font-bold">Dashboard</h1>
+                <Badge variant="outline" className="shrink-0">
                     {stats.total} total articles
                 </Badge>
             </div>
 
             {/* Stats Cards */}
-            <div className="*:data-[slot=card]:from-primary/5 *:data-[slot=card]:to-card dark:*:data-[slot=card]:bg-card grid grid-cols-1 gap-4 *:data-[slot=card]:bg-gradient-to-t *:data-[slot=card]:shadow-xs @xl/main:grid-cols-2 @5xl/main:grid-cols-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
                 <Card className="@container/card">
                     <CardHeader>
                         <CardDescription>Total Articles</CardDescription>
@@ -346,10 +352,32 @@ function Dashboard() {
                         </div>
                     </CardFooter>
                 </Card>
+
+                <Card className="@container/card">
+                    <CardHeader>
+                        <CardDescription>Sent to Slack</CardDescription>
+                        <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
+                            {stats.slackNotified}
+                        </CardTitle>
+                        <CardAction>
+                            <Badge variant="outline">
+                                <IconBrandSlack className="size-4" />
+                            </Badge>
+                        </CardAction>
+                    </CardHeader>
+                    <CardFooter className="flex-col items-start gap-1.5 text-sm">
+                        <div className="line-clamp-1 flex gap-2 font-medium">
+                            Recommended articles
+                        </div>
+                        <div className="text-muted-foreground">
+                            Shared via Slack notifications
+                        </div>
+                    </CardFooter>
+                </Card>
             </div>
 
             {/* Charts */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                 {/* Articles by Status */}
                 <Card className="@container/card">
                     <CardHeader>
@@ -414,7 +442,7 @@ function Dashboard() {
 
                 {/* Articles Over Time */}
                 {articlesOverTimeData.length > 0 && (
-                    <Card className="@container/card lg:col-span-2">
+                    <Card className="lg:col-span-2">
                         <CardHeader>
                             <CardTitle>Articles Over Time</CardTitle>
                             <CardDescription>Article activity for the last 30 days</CardDescription>
@@ -485,14 +513,14 @@ function Dashboard() {
                                     />
                                     <Area
                                         dataKey="total"
-                                        type="natural"
+                                        type="linear"
                                         fill="url(#fillTotal)"
                                         stroke="var(--color-total)"
                                         stackId="a"
                                     />
                                     <Area
                                         dataKey="completed"
-                                        type="natural"
+                                        type="linear"
                                         fill="url(#fillCompleted)"
                                         stroke="var(--color-completed)"
                                         stackId="a"
@@ -557,7 +585,7 @@ function TopArticleRow({ article }: { article: Article & { avgScore: number } })
                 <h3 className="font-medium text-sm leading-tight line-clamp-1 group-hover:text-primary transition-colors">
                     {article.title}
                 </h3>
-                <div className="flex gap-3 mt-1 text-xs text-muted-foreground">
+                <div className="hidden sm:flex gap-3 mt-1 text-xs text-muted-foreground">
                     <ScoreChip icon={IconFlame} value={article.score!.relevance} />
                     <ScoreChip icon={IconSparkles} value={article.score!.uniqueness} />
                     <ScoreChip icon={IconUsers} value={article.score!.engagement} />
@@ -567,7 +595,7 @@ function TopArticleRow({ article }: { article: Article & { avgScore: number } })
 
             {/* Meta info */}
             <div className="shrink-0 flex items-center gap-2">
-                <span className="text-xs text-muted-foreground flex items-center gap-1">
+                <span className="hidden sm:flex text-xs text-muted-foreground items-center gap-1">
                     <IconClock className="size-3" />
                     {formatDate(article.publishedAt)}
                 </span>
