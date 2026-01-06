@@ -25,12 +25,49 @@ export const Route = createFileRoute('/app/scanner')({
     component: RouteComponent,
 });
 
+const STORAGE_KEY = 'scanner-config';
+
+type ScannerConfig = {
+    rssCount: number;
+    daysBack: number;
+    parallelism: number;
+    selectedTags: string[];
+};
+
+function loadConfig(): Partial<ScannerConfig> {
+    if (typeof window === 'undefined') return {};
+    try {
+        const stored = localStorage.getItem(STORAGE_KEY);
+        return stored ? JSON.parse(stored) : {};
+    } catch {
+        return {};
+    }
+}
+
+function saveConfig(config: ScannerConfig) {
+    if (typeof window === 'undefined') return;
+    try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
+    } catch {
+        // Ignore storage errors
+    }
+}
+
 function RouteComponent() {
     const [scanId, setScanId] = useState<null | Id<'scans'>>(null);
-    const [rssCount, setRssCount] = useState(10);
-    const [daysBack, setDaysBack] = useState(7);
-    const [parallelism, setParallelism] = useState(3);
-    const [selectedTags, setSelectedTags] = useState<string[]>([]);
+
+    // Initialize state from localStorage
+    const [rssCount, setRssCount] = useState(() => loadConfig().rssCount ?? 10);
+    const [daysBack, setDaysBack] = useState(() => loadConfig().daysBack ?? 7);
+    const [parallelism, setParallelism] = useState(() => loadConfig().parallelism ?? 3);
+    const [selectedTags, setSelectedTags] = useState<string[]>(
+        () => loadConfig().selectedTags ?? [],
+    );
+
+    // Save config to localStorage when it changes
+    useEffect(() => {
+        saveConfig({ rssCount, daysBack, parallelism, selectedTags });
+    }, [rssCount, daysBack, parallelism, selectedTags]);
 
     const queueScan = useMutation(api.services.scans.queueScan);
     const cancelScan = useMutation(api.services.scans.cancelScan);
@@ -66,7 +103,7 @@ function RouteComponent() {
 
     const toggleTag = (tag: string) => {
         setSelectedTags((prev) =>
-            prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
+            prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag],
         );
     };
 
@@ -218,7 +255,8 @@ function RouteComponent() {
                             <div className="flex justify-between text-sm">
                                 <span className="text-muted-foreground">Progress</span>
                                 <span className="font-medium">
-                                    {runningScan.processedArticles ?? 0} / {runningScan.totalArticles} articles
+                                    {runningScan.processedArticles ?? 0} /{' '}
+                                    {runningScan.totalArticles} articles
                                 </span>
                             </div>
                             <div className="h-2 bg-secondary rounded-full overflow-hidden">
@@ -237,8 +275,10 @@ function RouteComponent() {
             {/* Logs */}
             {scanId && scanLogs.data && scanLogs.data.length > 0 && (
                 <div className="border rounded-lg p-4 space-y-3">
-                    <h2 className="font-semibold">Logs</h2>
-                    <div className="max-h-64 overflow-y-auto bg-muted/50 rounded p-3 font-mono text-xs space-y-1">
+                    <div className="flex items-center justify-between">
+                        <h2 className="font-semibold">Logs</h2>
+                    </div>
+                    <div className="h-80 min-h-32 max-h-[600px] resize-y overflow-auto bg-muted/50 rounded p-3 font-mono text-xs space-y-1">
                         {scanLogs.data.map((line) => (
                             <p key={line._id} className="text-muted-foreground">
                                 {line.message}
@@ -285,7 +325,12 @@ function ScanHistoryRow({
         _id: Id<'scans'>;
         _creationTime: number;
         status: string;
-        options: { rssCount: number; daysBack?: number; parallelism?: number; filterTags?: string[] };
+        options: {
+            rssCount: number;
+            daysBack?: number;
+            parallelism?: number;
+            filterTags?: string[];
+        };
         totalArticles?: number;
         processedArticles?: number;
         completedAt?: string;
@@ -293,17 +338,19 @@ function ScanHistoryRow({
     isSelected: boolean;
     onViewLogs: () => void;
 }) {
-    const statusColor = {
-        initializing: 'bg-yellow-500',
-        running: 'bg-blue-500',
-        completed: 'bg-green-500',
-    }[scan.status] ?? 'bg-gray-500';
+    const statusColor =
+        {
+            initializing: 'bg-yellow-500',
+            running: 'bg-blue-500',
+            completed: 'bg-green-500',
+        }[scan.status] ?? 'bg-gray-500';
 
     return (
         <div
-            className={`flex items-center justify-between p-3 rounded-lg border transition-colors ${
+            className={`flex items-center justify-between p-3 rounded-lg border transition-colors cursor-pointer ${
                 isSelected ? 'bg-accent border-primary' : 'hover:bg-accent/50'
             }`}
+            onClick={onViewLogs}
         >
             <div className="flex items-center gap-3">
                 <div className={`w-2 h-2 rounded-full ${statusColor}`} />
@@ -337,17 +384,12 @@ function ScanHistoryRow({
                     </p>
                 </div>
             </div>
-            <div className="flex items-center gap-2">
-                <Badge
-                    variant={scan.status === 'completed' ? 'default' : 'secondary'}
-                    className="capitalize"
-                >
-                    {scan.status}
-                </Badge>
-                <Button variant="ghost" size="sm" onClick={onViewLogs}>
-                    View Logs
-                </Button>
-            </div>
+            <Badge
+                variant={scan.status === 'completed' ? 'default' : 'secondary'}
+                className="capitalize"
+            >
+                {scan.status}
+            </Badge>
         </div>
     );
 }

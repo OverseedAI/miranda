@@ -37,14 +37,12 @@ import {
     IconSparkles,
     IconUsers,
     IconShieldCheck,
-    IconClock,
     IconSearch,
     IconChevronDown,
     IconChevronUp,
     IconVideo,
     IconStar,
     IconStarFilled,
-    IconRss,
     IconTrash,
 } from '@tabler/icons-react';
 import { useEffect, useMemo, useState } from 'react';
@@ -59,13 +57,48 @@ type SortOption = 'date-desc' | 'date-asc' | 'scan-desc' | 'scan-asc' | 'score-d
 type StatusFilter = 'all' | 'pending' | 'processing' | 'completed' | 'failed';
 type RecommendationFilter = 'all' | 'highly_recommended' | 'recommended' | 'maybe' | 'not_recommended';
 
+const STORAGE_KEY = 'articles-filters';
+
+type FiltersState = {
+    search: string;
+    statusFilter: StatusFilter;
+    recommendationFilter: RecommendationFilter;
+    sortOption: SortOption;
+};
+
+function loadFilters(): Partial<FiltersState> {
+    if (typeof window === 'undefined') return {};
+    try {
+        const stored = localStorage.getItem(STORAGE_KEY);
+        return stored ? JSON.parse(stored) : {};
+    } catch {
+        return {};
+    }
+}
+
+function saveFilters(filters: FiltersState) {
+    if (typeof window === 'undefined') return;
+    try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(filters));
+    } catch {
+        // Ignore storage errors
+    }
+}
+
 function RouteComponent() {
     const articles = useQuery(api.services.articles.getAllArticles);
-    const [search, setSearch] = useState('');
-    const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
-    const [recommendationFilter, setRecommendationFilter] = useState<RecommendationFilter>('all');
-    const [sortOption, setSortOption] = useState<SortOption>('date-desc');
+
+    // Initialize state from localStorage
+    const [search, setSearch] = useState(() => loadFilters().search ?? '');
+    const [statusFilter, setStatusFilter] = useState<StatusFilter>(() => loadFilters().statusFilter ?? 'all');
+    const [recommendationFilter, setRecommendationFilter] = useState<RecommendationFilter>(() => loadFilters().recommendationFilter ?? 'all');
+    const [sortOption, setSortOption] = useState<SortOption>(() => loadFilters().sortOption ?? 'date-desc');
     const [currentPage, setCurrentPage] = useState(1);
+
+    // Save filters to localStorage when they change
+    useEffect(() => {
+        saveFilters({ search, statusFilter, recommendationFilter, sortOption });
+    }, [search, statusFilter, recommendationFilter, sortOption]);
 
     const getAverageScore = (article: Article) => {
         if (!article.score) return null;
@@ -371,82 +404,89 @@ function ArticleRow({ article }: { article: Article }) {
 
     return (
         <div className="rounded-lg border bg-card overflow-hidden">
-            {/* Main Row */}
+            {/* Main Content */}
             <div
-                className={`flex items-center gap-3 p-3 transition-colors group ${hasAnalysis ? 'cursor-pointer hover:bg-accent/50' : ''}`}
+                className={`p-4 transition-colors group ${hasAnalysis ? 'cursor-pointer hover:bg-accent/50' : ''}`}
                 onClick={() => hasAnalysis && setIsExpanded(!isExpanded)}
             >
-                {/* Score badge */}
-                <div className="shrink-0 w-12 text-center">
-                    {avgScore !== null ? (
-                        <span className={`text-lg font-bold ${getScoreColor(avgScore)}`}>
-                            {avgScore.toFixed(1)}
-                        </span>
-                    ) : (
-                        <span className="text-sm text-muted-foreground">—</span>
-                    )}
-                </div>
+                {/* Row 1: Title + Actions */}
+                <div className="flex items-start gap-3">
+                    {/* Score indicator */}
+                    <div className="shrink-0 w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
+                        {avgScore !== null ? (
+                            <span className={`text-sm font-bold ${getScoreColor(avgScore)}`}>
+                                {avgScore.toFixed(1)}
+                            </span>
+                        ) : (
+                            <span className="text-xs text-muted-foreground">—</span>
+                        )}
+                    </div>
 
-                {/* Main content */}
-                <div className="flex-1 min-w-0">
-                    <h3 className="font-medium text-sm leading-tight line-clamp-1 group-hover:text-primary transition-colors">
-                        {article.title}
-                    </h3>
-                    <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
-                        <span className="flex items-center gap-1 shrink-0">
-                            <IconRss className="size-3" />
-                            <span className="max-w-32 truncate">{article.sourceName}</span>
-                        </span>
+                    {/* Title and metadata */}
+                    <div className="flex-1 min-w-0">
+                        {/* Date — Source */}
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
+                            <span className="font-medium">{formatDate(article.publishedAt)}</span>
+                            <span>—</span>
+                            <span className="truncate">{article.sourceName}</span>
+                        </div>
+
+                        {/* Title */}
+                        <h3 className="font-medium text-base leading-snug line-clamp-2 group-hover:text-primary transition-colors">
+                            {article.title}
+                        </h3>
+
+                        {/* Status and Recommendation */}
+                        <div className="flex flex-wrap items-center gap-2 mt-2">
+                            {getStatusBadge(article.status)}
+                            {article.recommendation && getRecommendationBadge(article.recommendation)}
+                        </div>
+
+                        {/* Row 3: Score breakdown (only if has score) */}
                         {hasScore && (
-                            <>
+                            <div className="flex items-center gap-4 mt-2 text-xs">
                                 <ScoreChip icon={IconFlame} value={article.score!.relevance} label="Relevance" />
                                 <ScoreChip icon={IconSparkles} value={article.score!.uniqueness} label="Uniqueness" />
                                 <ScoreChip icon={IconUsers} value={article.score!.engagement} label="Engagement" />
                                 <ScoreChip icon={IconShieldCheck} value={article.score!.credibility} label="Credibility" />
-                            </>
+                            </div>
                         )}
                     </div>
-                </div>
 
-                {/* Meta info */}
-                <div className="shrink-0 flex items-center gap-2">
-                    {article.recommendation && getRecommendationBadge(article.recommendation)}
-                    <span className="text-xs text-muted-foreground flex items-center gap-1">
-                        <IconClock className="size-3" />
-                        {formatDate(article.publishedAt)}
-                    </span>
-                    {getStatusBadge(article.status)}
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        className="size-8"
-                        asChild
-                        onClick={(e) => e.stopPropagation()}
-                    >
-                        <a href={article.url} target="_blank" rel="noopener noreferrer">
-                            <IconExternalLink className="size-4" />
-                        </a>
-                    </Button>
-                    {hasAnalysis && (
-                        <Button variant="ghost" size="icon" className="size-8">
-                            {isExpanded ? (
-                                <IconChevronUp className="size-4" />
-                            ) : (
-                                <IconChevronDown className="size-4" />
-                            )}
+                    {/* Actions */}
+                    <div className="shrink-0 flex items-center gap-1">
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="size-8"
+                            asChild
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <a href={article.url} target="_blank" rel="noopener noreferrer">
+                                <IconExternalLink className="size-4" />
+                            </a>
                         </Button>
-                    )}
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        className="size-8 text-muted-foreground hover:text-destructive"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            setShowDeleteDialog(true);
-                        }}
-                    >
-                        <IconTrash className="size-4" />
-                    </Button>
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="size-8 text-muted-foreground hover:text-destructive"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setShowDeleteDialog(true);
+                            }}
+                        >
+                            <IconTrash className="size-4" />
+                        </Button>
+                        {hasAnalysis && (
+                            <Button variant="ghost" size="icon" className="size-8">
+                                {isExpanded ? (
+                                    <IconChevronUp className="size-4" />
+                                ) : (
+                                    <IconChevronDown className="size-4" />
+                                )}
+                            </Button>
+                        )}
+                    </div>
                 </div>
             </div>
 
@@ -480,13 +520,13 @@ function ArticleRow({ article }: { article: Article }) {
 
             {/* Expanded Details */}
             {isExpanded && hasAnalysis && (
-                <div className="border-t bg-muted/30 p-4 space-y-3">
+                <div className="border-t bg-muted/30 px-4 py-3 space-y-3">
                     {article.summary && (
                         <div>
                             <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">
-                                AI Summary
+                                Summary
                             </h4>
-                            <p className="text-sm">{article.summary}</p>
+                            <p className="text-sm leading-relaxed">{article.summary}</p>
                         </div>
                     )}
                     {article.videoAngle && (

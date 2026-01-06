@@ -10,7 +10,8 @@ The creator's focus areas include:
 - Agentic AI and autonomous coding systems
 - Practical tutorials and workflows using AI tools
 
-Score each article on these criteria (1-10 scale):
+Score each article on these criteria (1-10 scale). For each criterion, provide both a numeric score and a brief 1-sentence explanation justifying that score:
+
 1. Relevance: How relevant is this to AI-assisted software development or the AI developer ecosystem?
 2. Uniqueness: Does this offer fresh insights, breaking news, or an underexplored angle?
 3. Engagement: Would this spark discussion among developers? Is it timely or controversial?
@@ -20,9 +21,13 @@ Respond with a JSON object in this exact format:
 {
     "summary": "Brief 2-3 sentence summary focused on why developers should care",
     "relevance": 7,
+    "relevanceSummary": "Brief explanation for the relevance score",
     "uniqueness": 8,
+    "uniquenessSummary": "Brief explanation for the uniqueness score",
     "engagement": 6,
+    "engagementSummary": "Brief explanation for the engagement score",
     "credibility": 9,
+    "credibilitySummary": "Brief explanation for the credibility score",
     "recommendation": "recommended",
     "videoAngle": "Specific video hook or title angle for a developer audience"
 }

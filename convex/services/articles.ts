@@ -115,9 +115,13 @@ export const updateArticleAnalysis = internalMutation({
         summary: v.string(),
         score: v.object({
             relevance: v.number(),
+            relevanceSummary: v.string(),
             uniqueness: v.number(),
+            uniquenessSummary: v.string(),
             engagement: v.number(),
+            engagementSummary: v.string(),
             credibility: v.number(),
+            credibilitySummary: v.string(),
         }),
         recommendation: v.string(),
         videoAngle: v.string(),

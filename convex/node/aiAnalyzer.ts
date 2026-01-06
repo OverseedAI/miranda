@@ -26,9 +26,13 @@ const videoAnalyzerAgent = new Agent(components.agent, {
 interface ArticleScores {
     summary: string;
     relevance: number;
+    relevanceSummary: string;
     uniqueness: number;
+    uniquenessSummary: string;
     engagement: number;
+    engagementSummary: string;
     credibility: number;
+    credibilitySummary: string;
     recommendation: string;
     videoAngle: string;
 }
@@ -120,9 +124,13 @@ export const analyzeArticle = internalAction({
                     summary: scores.summary,
                     score: {
                         relevance: scores.relevance,
+                        relevanceSummary: scores.relevanceSummary || '',
                         uniqueness: scores.uniqueness,
+                        uniquenessSummary: scores.uniquenessSummary || '',
                         engagement: scores.engagement,
+                        engagementSummary: scores.engagementSummary || '',
                         credibility: scores.credibility,
+                        credibilitySummary: scores.credibilitySummary || '',
                     },
                     recommendation: scores.recommendation || 'maybe',
                     videoAngle: scores.videoAngle || '',

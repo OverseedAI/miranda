@@ -52,9 +52,13 @@ export default defineSchema({
         score: v.optional(
             v.object({
                 relevance: v.number(),
+                relevanceSummary: v.string(),
                 uniqueness: v.number(),
+                uniquenessSummary: v.string(),
                 engagement: v.number(),
+                engagementSummary: v.string(),
                 credibility: v.number(),
+                credibilitySummary: v.string(),
             }),
         ),
         // AI recommendation
