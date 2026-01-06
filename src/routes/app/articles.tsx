@@ -55,7 +55,7 @@ export const Route = createFileRoute('/app/articles')({
 
 const ITEMS_PER_PAGE = 20;
 
-type SortOption = 'date-desc' | 'date-asc' | 'score-desc' | 'score-asc';
+type SortOption = 'date-desc' | 'date-asc' | 'scan-desc' | 'scan-asc' | 'score-desc' | 'score-asc';
 type StatusFilter = 'all' | 'pending' | 'processing' | 'completed' | 'failed';
 type RecommendationFilter = 'all' | 'highly_recommended' | 'recommended' | 'maybe' | 'not_recommended';
 
@@ -106,6 +106,10 @@ function RouteComponent() {
                     return new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime();
                 case 'date-asc':
                     return new Date(a.publishedAt).getTime() - new Date(b.publishedAt).getTime();
+                case 'scan-desc':
+                    return b._creationTime - a._creationTime;
+                case 'scan-asc':
+                    return a._creationTime - b._creationTime;
                 case 'score-desc': {
                     const scoreA = getAverageScore(a) ?? -1;
                     const scoreB = getAverageScore(b) ?? -1;
@@ -206,8 +210,10 @@ function RouteComponent() {
                         <SelectValue placeholder="Sort by" />
                     </SelectTrigger>
                     <SelectContent>
-                        <SelectItem value="date-desc">Date (Newest)</SelectItem>
-                        <SelectItem value="date-asc">Date (Oldest)</SelectItem>
+                        <SelectItem value="date-desc">Published (Newest)</SelectItem>
+                        <SelectItem value="date-asc">Published (Oldest)</SelectItem>
+                        <SelectItem value="scan-desc">Scanned (Newest)</SelectItem>
+                        <SelectItem value="scan-asc">Scanned (Oldest)</SelectItem>
                         <SelectItem value="score-desc">Score (Highest)</SelectItem>
                         <SelectItem value="score-asc">Score (Lowest)</SelectItem>
                     </SelectContent>
@@ -245,6 +251,7 @@ function RouteComponent() {
 
 type Article = {
     _id: string;
+    _creationTime: number;
     title: string;
     url: string;
     publishedAt: string;
