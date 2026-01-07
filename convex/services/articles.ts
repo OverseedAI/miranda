@@ -365,3 +365,76 @@ export const markArticlesAsSlackNotified = internalMutation({
         }
     },
 });
+
+/**
+ * Counts articles matching the given filters for bulk delete preview.
+ */
+export const countArticlesByFilters = query({
+    args: {
+        statuses: v.optional(v.array(v.string())),
+        recommendations: v.optional(v.array(v.string())),
+        sourceIds: v.optional(v.array(v.id('rss'))),
+    },
+    handler: async (ctx, args) => {
+        let articles = await ctx.db.query('articles').collect();
+
+        // Filter by statuses
+        if (args.statuses && args.statuses.length > 0) {
+            articles = articles.filter((a) => args.statuses!.includes(a.status));
+        }
+
+        // Filter by recommendations
+        if (args.recommendations && args.recommendations.length > 0) {
+            articles = articles.filter((a) => {
+                if (!a.recommendation) return args.recommendations!.includes('none');
+                return args.recommendations!.includes(a.recommendation);
+            });
+        }
+
+        // Filter by source IDs
+        if (args.sourceIds && args.sourceIds.length > 0) {
+            articles = articles.filter((a) => args.sourceIds!.includes(a.sourceId));
+        }
+
+        return { count: articles.length };
+    },
+});
+
+/**
+ * Bulk deletes articles matching the given filters.
+ */
+export const bulkDeleteArticles = mutation({
+    args: {
+        statuses: v.optional(v.array(v.string())),
+        recommendations: v.optional(v.array(v.string())),
+        sourceIds: v.optional(v.array(v.id('rss'))),
+    },
+    handler: async (ctx, args) => {
+        let articles = await ctx.db.query('articles').collect();
+
+        // Filter by statuses
+        if (args.statuses && args.statuses.length > 0) {
+            articles = articles.filter((a) => args.statuses!.includes(a.status));
+        }
+
+        // Filter by recommendations
+        if (args.recommendations && args.recommendations.length > 0) {
+            articles = articles.filter((a) => {
+                if (!a.recommendation) return args.recommendations!.includes('none');
+                return args.recommendations!.includes(a.recommendation);
+            });
+        }
+
+        // Filter by source IDs
+        if (args.sourceIds && args.sourceIds.length > 0) {
+            articles = articles.filter((a) => args.sourceIds!.includes(a.sourceId));
+        }
+
+        // Delete all matching articles
+        for (const article of articles) {
+            await ctx.db.delete(article._id);
+        }
+
+        return { deletedCount: articles.length };
+    },
+});

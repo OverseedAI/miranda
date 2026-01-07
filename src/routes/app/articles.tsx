@@ -46,6 +46,7 @@ import {
     IconTrash,
 } from '@tabler/icons-react';
 import { useEffect, useMemo, useState } from 'react';
+import { BulkDeleteModal } from '@/components/bulk-delete-modal';
 
 export const Route = createFileRoute('/app/articles')({
     component: RouteComponent,
@@ -94,6 +95,7 @@ function RouteComponent() {
     const [recommendationFilter, setRecommendationFilter] = useState<RecommendationFilter>(() => loadFilters().recommendationFilter ?? 'all');
     const [sortOption, setSortOption] = useState<SortOption>(() => loadFilters().sortOption ?? 'date-desc');
     const [currentPage, setCurrentPage] = useState(1);
+    const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
 
     // Save filters to localStorage when they change
     useEffect(() => {
@@ -194,7 +196,18 @@ function RouteComponent() {
         <div className="p-6">
             <div className="flex items-center justify-between mb-4">
                 <h1 className="text-2xl font-bold">Articles</h1>
-                <Badge variant="secondary">{filteredAndSortedArticles.length} articles</Badge>
+                <div className="flex items-center gap-2">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowBulkDeleteModal(true)}
+                        className="text-destructive hover:text-destructive"
+                    >
+                        <IconTrash className="size-4 mr-1" />
+                        Bulk Delete
+                    </Button>
+                    <Badge variant="secondary">{filteredAndSortedArticles.length} articles</Badge>
+                </div>
             </div>
 
             {/* Filters and Search */}
@@ -278,6 +291,12 @@ function RouteComponent() {
                     />
                 </div>
             )}
+
+            {/* Bulk Delete Modal */}
+            <BulkDeleteModal
+                open={showBulkDeleteModal}
+                onOpenChange={setShowBulkDeleteModal}
+            />
         </div>
     );
 }
