@@ -220,7 +220,7 @@ export function BulkDeleteModal({ open, onOpenChange }: BulkDeleteModalProps) {
     // Main configuration dialog
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="border-2 flex flex-col">
+            <DialogContent className="flex flex-col">
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2">
                         <IconTrash className="size-5" />
