@@ -427,6 +427,23 @@ function SingleFeedForm({
                         ))}
                     </div>
                 )}
+                {allTags.length > 0 && !tagInput && (
+                    <div className="mt-2">
+                        <p className="text-xs text-muted-foreground mb-1.5">Existing tags:</p>
+                        <div className="flex flex-wrap gap-1">
+                            {allTags.filter((t) => !tags.includes(t)).map((tag) => (
+                                <Badge
+                                    key={tag}
+                                    variant="outline"
+                                    className="cursor-pointer hover:bg-accent text-xs"
+                                    onClick={() => handleAddTag(tag)}
+                                >
+                                    {tag}
+                                </Badge>
+                            ))}
+                        </div>
+                    </div>
+                )}
                 <p className="text-xs text-muted-foreground">
                     Tags help organize and filter feeds
                 </p>

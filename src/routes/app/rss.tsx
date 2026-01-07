@@ -24,6 +24,8 @@ import {
     IconFilter,
     IconX,
     IconEye,
+    IconSortAscendingLetters,
+    IconSortDescendingLetters,
 } from '@tabler/icons-react';
 import { useEffect, useMemo, useState } from 'react';
 import type { Id } from '@/convex/_generated/dataModel';
@@ -52,6 +54,8 @@ function RouteComponent() {
 
     const [search, setSearch] = useState('');
     const [selectedTags, setSelectedTags] = useState<string[]>([]);
+    const [sortAsc, setSortAsc] = useState(true);
+    const [youtubeFilter, setYoutubeFilter] = useState<'all' | 'youtube' | 'non-youtube'>('all');
     const [currentPage, setCurrentPage] = useState(1);
     const [modalOpen, setModalOpen] = useState(false);
     const [editFeed, setEditFeed] = useState<Feed | null>(null);
@@ -81,13 +85,26 @@ function RouteComponent() {
             });
         }
 
-        return result;
-    }, [feeds, search, selectedTags]);
+        // Filter by YouTube type
+        if (youtubeFilter === 'youtube') {
+            result = result.filter((f) => f.xmlUrl.toLowerCase().includes('youtube'));
+        } else if (youtubeFilter === 'non-youtube') {
+            result = result.filter((f) => !f.xmlUrl.toLowerCase().includes('youtube'));
+        }
 
-    // Reset to page 1 when search or tags change
+        // Sort alphabetically by name
+        result.sort((a, b) => {
+            const comparison = a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
+            return sortAsc ? comparison : -comparison;
+        });
+
+        return result;
+    }, [feeds, search, selectedTags, youtubeFilter, sortAsc]);
+
+    // Reset to page 1 when search, tags, or youtube filter change
     useEffect(() => {
         setCurrentPage(1);
-    }, [search, selectedTags]);
+    }, [search, selectedTags, youtubeFilter]);
 
     const toggleTag = (tag: string) => {
         setSelectedTags((prev) =>
@@ -161,6 +178,41 @@ function RouteComponent() {
                         className="pl-9"
                     />
                 </div>
+                <div className="flex rounded-md border overflow-hidden">
+                    <button
+                        type="button"
+                        onClick={() => setYoutubeFilter('all')}
+                        className={`px-3 h-9 text-sm ${youtubeFilter === 'all' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}`}
+                    >
+                        All
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setYoutubeFilter('youtube')}
+                        className={`px-3 h-9 text-sm border-l ${youtubeFilter === 'youtube' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}`}
+                    >
+                        YouTube
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setYoutubeFilter('non-youtube')}
+                        className={`px-3 h-9 text-sm border-l ${youtubeFilter === 'non-youtube' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}`}
+                    >
+                        Other
+                    </button>
+                </div>
+                <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setSortAsc(!sortAsc)}
+                    title={sortAsc ? 'Sort A-Z' : 'Sort Z-A'}
+                >
+                    {sortAsc ? (
+                        <IconSortAscendingLetters className="size-4" />
+                    ) : (
+                        <IconSortDescendingLetters className="size-4" />
+                    )}
+                </Button>
                 <Button onClick={handleAddNew}>
                     <IconPlus className="size-4 mr-2" />
                     Add Feed

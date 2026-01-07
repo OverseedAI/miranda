@@ -315,9 +315,13 @@ type Article = {
     videoAngle?: string;
     score?: {
         relevance: number;
+        relevanceSummary?: string;
         uniqueness: number;
+        uniquenessSummary?: string;
         engagement: number;
+        engagementSummary?: string;
         credibility: number;
+        credibilitySummary?: string;
     };
 };
 
@@ -555,6 +559,49 @@ function ArticleRow({ article }: { article: Article }) {
                                 Video Angle
                             </h4>
                             <p className="text-sm text-primary">{article.videoAngle}</p>
+                        </div>
+                    )}
+                    {article.score && (
+                        <div className="space-y-2">
+                            <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                                Score Breakdown
+                            </h4>
+                            {article.score.relevanceSummary && (
+                                <div>
+                                    <div className="flex items-center gap-1.5 mb-0.5">
+                                        <IconFlame className="size-3 text-muted-foreground" />
+                                        <span className="text-xs font-medium">Relevance ({article.score.relevance}/10)</span>
+                                    </div>
+                                    <p className="text-sm text-muted-foreground pl-4">{article.score.relevanceSummary}</p>
+                                </div>
+                            )}
+                            {article.score.uniquenessSummary && (
+                                <div>
+                                    <div className="flex items-center gap-1.5 mb-0.5">
+                                        <IconSparkles className="size-3 text-muted-foreground" />
+                                        <span className="text-xs font-medium">Uniqueness ({article.score.uniqueness}/10)</span>
+                                    </div>
+                                    <p className="text-sm text-muted-foreground pl-4">{article.score.uniquenessSummary}</p>
+                                </div>
+                            )}
+                            {article.score.engagementSummary && (
+                                <div>
+                                    <div className="flex items-center gap-1.5 mb-0.5">
+                                        <IconUsers className="size-3 text-muted-foreground" />
+                                        <span className="text-xs font-medium">Engagement ({article.score.engagement}/10)</span>
+                                    </div>
+                                    <p className="text-sm text-muted-foreground pl-4">{article.score.engagementSummary}</p>
+                                </div>
+                            )}
+                            {article.score.credibilitySummary && (
+                                <div>
+                                    <div className="flex items-center gap-1.5 mb-0.5">
+                                        <IconShieldCheck className="size-3 text-muted-foreground" />
+                                        <span className="text-xs font-medium">Credibility ({article.score.credibility}/10)</span>
+                                    </div>
+                                    <p className="text-sm text-muted-foreground pl-4">{article.score.credibilitySummary}</p>
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>

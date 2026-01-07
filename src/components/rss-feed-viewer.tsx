@@ -116,15 +116,15 @@ export function RssFeedViewer({ open, onOpenChange, feedName, xmlUrl }: RssFeedV
                 )}
 
                 {feedData && !loading && (
-                    <div className="flex-1 overflow-y-auto space-y-4 py-4">
+                    <div className="flex-1 overflow-y-auto space-y-3 py-2">
                         {/* Feed Info */}
-                        <div className="border-b pb-4">
-                            <h2 className="text-xl font-bold mb-2">{feedData.title}</h2>
+                        <div className="border-b pb-2">
+                            <h2 className="text-lg font-bold mb-1">{feedData.title}</h2>
                             {feedData.description && (
-                                <p className="text-sm text-muted-foreground mb-2">{feedData.description}</p>
+                                <p className="text-xs text-muted-foreground mb-1">{feedData.description}</p>
                             )}
                             {feedData.link && (
-                                <Button variant="link" size="sm" className="h-auto p-0" asChild>
+                                <Button variant="link" size="sm" className="h-auto p-0 text-xs" asChild>
                                     <a href={feedData.link} target="_blank" rel="noopener noreferrer">
                                         <IconExternalLink className="size-3 mr-1" />
                                         Visit website
@@ -135,10 +135,10 @@ export function RssFeedViewer({ open, onOpenChange, feedName, xmlUrl }: RssFeedV
 
                         {/* Articles List */}
                         <div>
-                            <div className="flex items-center justify-between mb-3">
-                                <h3 className="text-lg font-semibold">
+                            <div className="flex items-center justify-between mb-2">
+                                <h3 className="text-base font-semibold">
                                     Articles
-                                    <Badge variant="secondary" className="ml-2">
+                                    <Badge variant="secondary" className="ml-2 text-xs">
                                         {feedData.articles.length}
                                     </Badge>
                                 </h3>
@@ -149,14 +149,14 @@ export function RssFeedViewer({ open, onOpenChange, feedName, xmlUrl }: RssFeedV
                                     No articles found in this feed
                                 </div>
                             ) : (
-                                <div className="space-y-4">
+                                <div className="space-y-1.5">
                                     {feedData.articles.map((article, idx) => (
                                         <article
                                             key={idx}
-                                            className="p-4 rounded-lg border bg-card hover:bg-accent/50 transition-colors"
+                                            className="p-2.5 rounded-md border bg-card hover:bg-accent/50 transition-colors"
                                         >
-                                            <div className="flex items-start justify-between gap-3 mb-2">
-                                                <h4 className="font-medium leading-tight flex-1">
+                                            <div className="flex items-start justify-between gap-2 mb-1">
+                                                <h4 className="text-sm font-medium leading-tight flex-1">
                                                     <a
                                                         href={article.link}
                                                         target="_blank"
@@ -169,7 +169,7 @@ export function RssFeedViewer({ open, onOpenChange, feedName, xmlUrl }: RssFeedV
                                                 <Button
                                                     variant="ghost"
                                                     size="icon"
-                                                    className="size-7 shrink-0"
+                                                    className="size-6 shrink-0"
                                                     asChild
                                                 >
                                                     <a
@@ -177,12 +177,12 @@ export function RssFeedViewer({ open, onOpenChange, feedName, xmlUrl }: RssFeedV
                                                         target="_blank"
                                                         rel="noopener noreferrer"
                                                     >
-                                                        <IconExternalLink className="size-4" />
+                                                        <IconExternalLink className="size-3.5" />
                                                     </a>
                                                 </Button>
                                             </div>
 
-                                            <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground mb-2">
+                                            <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground mb-1">
                                                 {article.pubDate && (
                                                     <span>{formatDate(article.pubDate)}</span>
                                                 )}
@@ -195,7 +195,7 @@ export function RssFeedViewer({ open, onOpenChange, feedName, xmlUrl }: RssFeedV
                                             </div>
 
                                             {article.contentSnippet && (
-                                                <p className="text-sm text-muted-foreground line-clamp-3">
+                                                <p className="text-xs text-muted-foreground line-clamp-2">
                                                     {article.contentSnippet}
                                                 </p>
                                             )}
