@@ -1,0 +1,2 @@
+postInstall:
+  - cp /Users/hal/overseed/miranda/.env.local "/Users/hal/Library/Application Support/viwo/worktrees/$VIWO_WORKTREE_ID/.env.local"
