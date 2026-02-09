@@ -76,4 +76,20 @@ export default defineSchema({
         value: v.any(),
         updatedAt: v.string(),
     }).index('byKey', ['key']),
+    apiUsage: defineTable({
+        provider: v.string(),
+        model: v.string(),
+        agentName: v.optional(v.string()),
+        promptTokens: v.number(),
+        completionTokens: v.number(),
+        totalTokens: v.number(),
+        reasoningTokens: v.optional(v.number()),
+        cachedInputTokens: v.optional(v.number()),
+        userId: v.optional(v.string()),
+        threadId: v.optional(v.string()),
+        scanId: v.optional(v.id('scans')),
+        articleId: v.optional(v.id('articles')),
+    })
+        .index('byScanId', ['scanId'])
+        .index('byArticleId', ['articleId']),
 });

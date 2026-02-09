@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as AppRouteRouteImport } from './routes/app/route'
+import { Route as AppUsageRouteImport } from './routes/app/usage'
 import { Route as AppSettingsRouteImport } from './routes/app/settings'
 import { Route as AppScannerRouteImport } from './routes/app/scanner'
 import { Route as AppRssRouteImport } from './routes/app/rss'
@@ -20,6 +21,11 @@ const AppRouteRoute = AppRouteRouteImport.update({
   id: '/app',
   path: '/app',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AppUsageRoute = AppUsageRouteImport.update({
+  id: '/usage',
+  path: '/usage',
+  getParentRoute: () => AppRouteRoute,
 } as any)
 const AppSettingsRoute = AppSettingsRouteImport.update({
   id: '/settings',
@@ -54,6 +60,7 @@ export interface FileRoutesByFullPath {
   '/app/rss': typeof AppRssRoute
   '/app/scanner': typeof AppScannerRoute
   '/app/settings': typeof AppSettingsRoute
+  '/app/usage': typeof AppUsageRoute
 }
 export interface FileRoutesByTo {
   '/app': typeof AppRouteRouteWithChildren
@@ -62,6 +69,7 @@ export interface FileRoutesByTo {
   '/app/rss': typeof AppRssRoute
   '/app/scanner': typeof AppScannerRoute
   '/app/settings': typeof AppSettingsRoute
+  '/app/usage': typeof AppUsageRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -71,6 +79,7 @@ export interface FileRoutesById {
   '/app/rss': typeof AppRssRoute
   '/app/scanner': typeof AppScannerRoute
   '/app/settings': typeof AppSettingsRoute
+  '/app/usage': typeof AppUsageRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -81,6 +90,7 @@ export interface FileRouteTypes {
     | '/app/rss'
     | '/app/scanner'
     | '/app/settings'
+    | '/app/usage'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/app'
@@ -89,6 +99,7 @@ export interface FileRouteTypes {
     | '/app/rss'
     | '/app/scanner'
     | '/app/settings'
+    | '/app/usage'
   id:
     | '__root__'
     | '/app'
@@ -97,6 +108,7 @@ export interface FileRouteTypes {
     | '/app/rss'
     | '/app/scanner'
     | '/app/settings'
+    | '/app/usage'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -111,6 +123,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/app'
       preLoaderRoute: typeof AppRouteRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/app/usage': {
+      id: '/app/usage'
+      path: '/usage'
+      fullPath: '/app/usage'
+      preLoaderRoute: typeof AppUsageRouteImport
+      parentRoute: typeof AppRouteRoute
     }
     '/app/settings': {
       id: '/app/settings'
@@ -156,6 +175,7 @@ interface AppRouteRouteChildren {
   AppRssRoute: typeof AppRssRoute
   AppScannerRoute: typeof AppScannerRoute
   AppSettingsRoute: typeof AppSettingsRoute
+  AppUsageRoute: typeof AppUsageRoute
 }
 
 const AppRouteRouteChildren: AppRouteRouteChildren = {
@@ -164,6 +184,7 @@ const AppRouteRouteChildren: AppRouteRouteChildren = {
   AppRssRoute: AppRssRoute,
   AppScannerRoute: AppScannerRoute,
   AppSettingsRoute: AppSettingsRoute,
+  AppUsageRoute: AppUsageRoute,
 }
 
 const AppRouteRouteWithChildren = AppRouteRoute._addFileChildren(

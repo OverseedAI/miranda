@@ -7,6 +7,7 @@ import { Agent, createThread } from '@convex-dev/agent';
 import { openai } from '@ai-sdk/openai';
 import type { Id } from '../_generated/dataModel';
 import { VIDEO_ANALYZER_INSTRUCTIONS, videoAnalyzerPrompt } from '../prompts';
+import { createUsageHandler } from './usage';
 
 type AnalysisResult =
     | { status: 'skipped' }
@@ -112,6 +113,12 @@ export const analyzeArticle = internalAction({
                         summary: article.summary,
                     }),
                 },
+                {
+                    usageHandler: createUsageHandler({
+                        scanId,
+                        articleId,
+                    }),
+                }
             );
 
             // Parse the scores from the text response

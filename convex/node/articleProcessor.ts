@@ -7,6 +7,7 @@ import { Agent, createThread, createTool } from '@convex-dev/agent';
 import { openai } from '@ai-sdk/openai';
 import { z } from 'zod';
 import type { Id } from '../_generated/dataModel';
+import { createUsageHandler } from './usage';
 
 type ProcessResult =
     | { status: 'completed' }
@@ -131,6 +132,12 @@ export const processNextArticle = internalAction({
                     prompt: `Fetch and extract the main content from the news article at: ${article.url}
 
                     Return only the extracted article text, nothing else.`,
+                },
+                {
+                    usageHandler: createUsageHandler({
+                        scanId,
+                        articleId: nextArticleId,
+                    }),
                 }
             );
 
