@@ -82,18 +82,24 @@ export const checkAndTriggerScan = internalAction({
             return { triggered: false, reason: 'No RSS feeds available for the selected filters' };
         }
 
-        // Update last run time before triggering
+        // Trigger the scan first. We only checkpoint lastRunAt on successful trigger.
+        try {
+            await ctx.runMutation(internal.services.autoScan.triggerAutoScan, {
+                feedCount,
+                daysBack,
+                parallelism,
+                filterTags,
+            });
+        } catch (error) {
+            return {
+                triggered: false,
+                reason: `Failed to trigger scan: ${(error as Error).message}`,
+            };
+        }
+
         await ctx.runMutation(internal.services.settings.setSettingInternal, {
             key: 'autoScan.lastRunAt',
             value: new Date().toISOString(),
-        });
-
-        // Trigger the scan using the internal mutation
-        await ctx.runMutation(internal.services.autoScan.triggerAutoScan, {
-            feedCount,
-            daysBack,
-            parallelism,
-            filterTags,
         });
 
         return {
