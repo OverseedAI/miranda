@@ -26,7 +26,6 @@ export const Route = createFileRoute('/app/settings')({
 const SETTINGS_KEYS = [
     'autoScan.enabled',
     'autoScan.intervalMinutes',
-    'autoScan.rssCount',
     'autoScan.daysBack',
     'autoScan.parallelism',
     'autoScan.filterTags',
@@ -40,7 +39,6 @@ const SETTINGS_KEYS = [
 const DEFAULTS: Record<string, unknown> = {
     'autoScan.enabled': false,
     'autoScan.intervalMinutes': 240,
-    'autoScan.rssCount': 10,
     'autoScan.daysBack': 7,
     'autoScan.parallelism': 3,
     'autoScan.filterTags': [],
@@ -199,22 +197,11 @@ function RouteComponent() {
                             </Select>
                         </div>
 
-                        {/* RSS Count */}
                         <div className="grid gap-2">
-                            <Label htmlFor="autoScan.rssCount">Feeds per Scan</Label>
-                            <Input
-                                id="autoScan.rssCount"
-                                type="number"
-                                min={1}
-                                max={100}
-                                className="w-24"
-                                value={getValue<number>('autoScan.rssCount')}
-                                onChange={(e) =>
-                                    handleChange('autoScan.rssCount', Number(e.target.value) || 10)
-                                }
-                            />
+                            <Label>Feed Coverage</Label>
                             <p className="text-sm text-muted-foreground">
-                                Number of RSS feeds to process per scan
+                                Every auto-scan run processes all feeds (or all selected tags if
+                                tag filters are enabled).
                             </p>
                         </div>
 

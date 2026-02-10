@@ -2,6 +2,7 @@ import { internalMutation, mutation, query } from '../_generated/server';
 import { ConvexError, v } from 'convex/values';
 import { api, internal } from '../_generated/api';
 import { ScanStatus } from '../types';
+import type { Id } from '../_generated/dataModel';
 
 /**
  * Queues a new scan to be executed.
@@ -15,7 +16,7 @@ export const queueScan = mutation({
         delay: v.optional(v.number()),
         filterTags: v.optional(v.array(v.string())),
     },
-    handler: async (ctx, args) => {
+    handler: async (ctx, args): Promise<Id<'scans'>> => {
         // Check for running scans
         const runningScan = await ctx.runQuery(api.services.scans.getRunningScan);
 
@@ -23,11 +24,23 @@ export const queueScan = mutation({
             throw new ConvexError('A scan is already running');
         }
 
+        const feedsForScan: { _id: Id<'rss'> }[] = await ctx.runQuery(
+            internal.services.rss.getFeedsForScan,
+            {
+                tags: args.filterTags && args.filterTags.length > 0 ? args.filterTags : undefined,
+            }
+        );
+        const effectiveRssCount: number = feedsForScan.length;
+
+        if (effectiveRssCount === 0) {
+            throw new ConvexError('No RSS feeds available for the selected filters');
+        }
+
         // Create the scan record with all options
-        const scanId = await ctx.db.insert('scans', {
+        const scanId: Id<'scans'> = await ctx.db.insert('scans', {
             status: ScanStatus.INITIALIZING,
             options: {
-                rssCount: args.rssCount,
+                rssCount: effectiveRssCount,
                 daysBack: args.daysBack,
                 parallelism: args.parallelism,
                 filterTags: args.filterTags,
@@ -40,7 +53,7 @@ export const queueScan = mutation({
             internal.node.rssParser.parseFeeds,
             {
                 scanId,
-                rssCount: args.rssCount,
+                rssCount: effectiveRssCount,
                 daysBack: args.daysBack,
                 parallelism: args.parallelism,
                 filterTags: args.filterTags,

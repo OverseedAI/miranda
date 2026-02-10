@@ -5,7 +5,7 @@ import { ScanStatus } from '../types';
 
 type CheckResult =
     | { triggered: false; reason: string }
-    | { triggered: true; config: { rssCount: number; daysBack: number; parallelism: number; filterTags: string[] } };
+    | { triggered: true; config: { feedCount: number; daysBack: number; parallelism: number; filterTags: string[] } };
 
 /**
  * Checks if an auto-scan should be triggered and triggers it if conditions are met.
@@ -61,10 +61,6 @@ export const checkAndTriggerScan = internalAction({
         }
 
         // Get scan configuration
-        const rssCount = ((await ctx.runQuery(internal.services.settings.getSettingInternal, {
-            key: 'autoScan.rssCount',
-        })) as number | null) ?? 10;
-
         const daysBack = ((await ctx.runQuery(internal.services.settings.getSettingInternal, {
             key: 'autoScan.daysBack',
         })) as number | null) ?? 7;
@@ -77,6 +73,15 @@ export const checkAndTriggerScan = internalAction({
             key: 'autoScan.filterTags',
         })) as string[] | null) ?? [];
 
+        const feedsForScan = await ctx.runQuery(internal.services.rss.getFeedsForScan, {
+            tags: filterTags.length > 0 ? filterTags : undefined,
+        });
+        const feedCount = feedsForScan.length;
+
+        if (feedCount === 0) {
+            return { triggered: false, reason: 'No RSS feeds available for the selected filters' };
+        }
+
         // Update last run time before triggering
         await ctx.runMutation(internal.services.settings.setSettingInternal, {
             key: 'autoScan.lastRunAt',
@@ -85,7 +90,7 @@ export const checkAndTriggerScan = internalAction({
 
         // Trigger the scan using the internal mutation
         await ctx.runMutation(internal.services.autoScan.triggerAutoScan, {
-            rssCount,
+            feedCount,
             daysBack,
             parallelism,
             filterTags,
@@ -93,7 +98,7 @@ export const checkAndTriggerScan = internalAction({
 
         return {
             triggered: true,
-            config: { rssCount, daysBack, parallelism, filterTags },
+            config: { feedCount, daysBack, parallelism, filterTags },
         };
     },
 });
@@ -104,7 +109,7 @@ export const checkAndTriggerScan = internalAction({
  */
 export const triggerAutoScan = internalMutation({
     args: {
-        rssCount: v.number(),
+        feedCount: v.number(),
         daysBack: v.number(),
         parallelism: v.number(),
         filterTags: v.array(v.string()),
@@ -114,7 +119,7 @@ export const triggerAutoScan = internalMutation({
         const scanId = await ctx.db.insert('scans', {
             status: ScanStatus.INITIALIZING,
             options: {
-                rssCount: args.rssCount,
+                rssCount: args.feedCount,
                 daysBack: args.daysBack,
                 parallelism: args.parallelism,
             },
@@ -123,7 +128,7 @@ export const triggerAutoScan = internalMutation({
         // Schedule the RSS parsing action with tag filtering
         await ctx.scheduler.runAfter(0, internal.node.rssParser.parseFeeds, {
             scanId,
-            rssCount: args.rssCount,
+            rssCount: args.feedCount,
             daysBack: args.daysBack,
             parallelism: args.parallelism,
             filterTags: args.filterTags.length > 0 ? args.filterTags : undefined,

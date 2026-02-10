@@ -9,7 +9,7 @@ import { api } from '@/convex/_generated/api';
 import { useQuery as useTanstackQuery } from '@tanstack/react-query';
 import { convexQuery } from '@convex-dev/react-query';
 import type { Id } from '@/convex/_generated/dataModel';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
     IconPlayerPlay,
     IconPlayerStop,
@@ -28,7 +28,6 @@ export const Route = createFileRoute('/app/scanner')({
 const STORAGE_KEY = 'scanner-config';
 
 type ScannerConfig = {
-    rssCount: number;
     daysBack: number;
     parallelism: number;
     selectedTags: string[];
@@ -57,7 +56,6 @@ function RouteComponent() {
     const [scanId, setScanId] = useState<null | Id<'scans'>>(null);
 
     // Initialize state from localStorage
-    const [rssCount, setRssCount] = useState(() => loadConfig().rssCount ?? 10);
     const [daysBack, setDaysBack] = useState(() => loadConfig().daysBack ?? 7);
     const [parallelism, setParallelism] = useState(() => loadConfig().parallelism ?? 3);
     const [selectedTags, setSelectedTags] = useState<string[]>(
@@ -66,16 +64,27 @@ function RouteComponent() {
 
     // Save config to localStorage when it changes
     useEffect(() => {
-        saveConfig({ rssCount, daysBack, parallelism, selectedTags });
-    }, [rssCount, daysBack, parallelism, selectedTags]);
+        saveConfig({ daysBack, parallelism, selectedTags });
+    }, [daysBack, parallelism, selectedTags]);
 
     const queueScan = useMutation(api.services.scans.queueScan);
     const cancelScan = useMutation(api.services.scans.cancelScan);
     const runningScan = useQuery(api.services.scans.getRunningScan);
     const allScans = useQuery(api.services.scans.getAllScans);
     const allTags = useQuery(api.services.rss.getAllTags);
+    const allFeeds = useQuery(api.services.rss.getAllRss);
     const failedArticles = useQuery(api.services.articles.getFailedArticles);
     const retryAllFailed = useMutation(api.services.articles.retryAllFailedArticles);
+
+    const matchingFeedCount = useMemo(() => {
+        if (!allFeeds) return 0;
+        if (selectedTags.length === 0) return allFeeds.length;
+
+        return allFeeds.filter((feed: { tags?: string[] }) => {
+            if (!feed.tags || feed.tags.length === 0) return false;
+            return selectedTags.some((tag) => feed.tags!.includes(tag));
+        }).length;
+    }, [allFeeds, selectedTags]);
 
     const scanLogs = useTanstackQuery({
         ...convexQuery(api.services.logs.getLogs, {
@@ -91,8 +100,10 @@ function RouteComponent() {
     }, [runningScan, scanId]);
 
     const handleStartScan = async () => {
+        if (matchingFeedCount === 0) return;
+
         const id = await queueScan({
-            rssCount,
+            rssCount: matchingFeedCount,
             daysBack,
             parallelism,
             delay: 1,
@@ -138,19 +149,15 @@ function RouteComponent() {
                 <h2 className="font-semibold">Scan Configuration</h2>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div className="space-y-2">
-                        <Label htmlFor="rssCount" className="flex items-center gap-2">
+                        <Label className="flex items-center gap-2">
                             <IconRss className="size-4" />
-                            RSS Feeds
+                            Feed Coverage
                         </Label>
-                        <Input
-                            id="rssCount"
-                            type="number"
-                            min={1}
-                            max={100}
-                            value={rssCount}
-                            onChange={(e) => setRssCount(Number(e.target.value))}
-                            disabled={!!runningScan}
-                        />
+                        <div className="h-10 rounded-md border px-3 flex items-center text-sm bg-muted/30">
+                            {selectedTags.length === 0
+                                ? `All feeds (${matchingFeedCount})`
+                                : `All matching tagged feeds (${matchingFeedCount})`}
+                        </div>
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor="daysBack" className="flex items-center gap-2">
@@ -197,7 +204,7 @@ function RouteComponent() {
                             )}
                         </Label>
                         <div className="flex flex-wrap gap-2">
-                            {allTags.map((tag) => (
+                            {allTags.map((tag: string) => (
                                 <Badge
                                     key={tag}
                                     variant={selectedTags.includes(tag) ? 'default' : 'outline'}
@@ -229,9 +236,9 @@ function RouteComponent() {
                             Cancel Scan
                         </Button>
                     ) : (
-                        <Button onClick={handleStartScan}>
+                        <Button onClick={handleStartScan} disabled={matchingFeedCount === 0}>
                             <IconPlayerPlay className="size-4 mr-2" />
-                            Start Scan
+                            {matchingFeedCount === 0 ? 'No Feeds to Scan' : 'Start Scan'}
                         </Button>
                     )}
                 </div>
@@ -279,7 +286,7 @@ function RouteComponent() {
                         <h2 className="font-semibold">Logs</h2>
                     </div>
                     <div className="h-80 min-h-32 max-h-[600px] resize-y overflow-auto bg-muted/50 rounded p-3 font-mono text-xs space-y-1">
-                        {scanLogs.data.map((line) => (
+                        {scanLogs.data.map((line: { _id: string; message: string }) => (
                             <p key={line._id} className="text-muted-foreground">
                                 {line.message}
                             </p>
@@ -301,7 +308,7 @@ function RouteComponent() {
                     <p className="text-muted-foreground text-sm">No scans yet.</p>
                 ) : (
                     <div className="space-y-2">
-                        {allScans.slice(0, 10).map((scan) => (
+                        {allScans.slice(0, 10).map((scan: ScanHistoryRowProps['scan']) => (
                             <ScanHistoryRow
                                 key={scan._id}
                                 scan={scan}
@@ -316,11 +323,7 @@ function RouteComponent() {
     );
 }
 
-function ScanHistoryRow({
-    scan,
-    isSelected,
-    onViewLogs,
-}: {
+type ScanHistoryRowProps = {
     scan: {
         _id: Id<'scans'>;
         _creationTime: number;
@@ -337,7 +340,13 @@ function ScanHistoryRow({
     };
     isSelected: boolean;
     onViewLogs: () => void;
-}) {
+};
+
+function ScanHistoryRow({
+    scan,
+    isSelected,
+    onViewLogs,
+}: ScanHistoryRowProps) {
     const statusColor =
         {
             initializing: 'bg-yellow-500',

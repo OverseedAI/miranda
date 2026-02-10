@@ -42,7 +42,7 @@ export const parseFeeds = internalAction({
         articlesSaved: v.number(),
     }),
     handler: async (ctx, args): Promise<ParseFeedsResult> => {
-        const { scanId, rssCount } = args;
+        const { scanId } = args;
         const daysBack = args.daysBack ?? DEFAULT_DAYS_BACK;
         const parallelism = args.parallelism ?? DEFAULT_PARALLELISM;
         const filterTags = args.filterTags ?? [];
@@ -54,14 +54,9 @@ export const parseFeeds = internalAction({
         });
 
         // Get RSS feeds from database, optionally filtered by tags
-        const rssFeeds = filterTags.length > 0
-            ? await ctx.runQuery(internal.services.rss.getFeedsByTags, {
-                  tags: filterTags,
-                  limit: rssCount,
-              })
-            : await ctx.runQuery(internal.services.rss.getRssFeed, {
-                  limit: rssCount,
-              });
+        const rssFeeds = await ctx.runQuery(internal.services.rss.getFeedsForScan, {
+            tags: filterTags.length > 0 ? filterTags : undefined,
+        });
 
         // Parse all feeds
         const articles: Article[] = [];

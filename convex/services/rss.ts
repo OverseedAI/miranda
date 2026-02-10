@@ -97,6 +97,29 @@ export const getRssFeed = internalQuery({
 });
 
 /**
+ * Gets all feeds for scanning, optionally filtered by tags.
+ * This is used by manual scans and auto-scan to ensure complete feed coverage.
+ */
+export const getFeedsForScan = internalQuery({
+    args: {
+        tags: v.optional(v.array(v.string())),
+    },
+    handler: async (ctx, args) => {
+        const feeds = await ctx.db.query('rss').collect();
+        const tags = args.tags ?? [];
+
+        if (tags.length === 0) {
+            return feeds;
+        }
+
+        return feeds.filter((feed) => {
+            if (!feed.tags || feed.tags.length === 0) return false;
+            return tags.some((tag) => feed.tags!.includes(tag));
+        });
+    },
+});
+
+/**
  * Updates feed status after a fetch attempt.
  */
 export const updateFeedStatus = internalMutation({
