@@ -3,9 +3,56 @@ import { v } from 'convex/values';
 import { ArticleStatus } from '../types';
 import type { Id } from '../_generated/dataModel';
 
+const TRACKING_PARAM_PREFIXES = ['utm_', 'mc_'];
+const TRACKING_PARAMS = new Set([
+    'fbclid',
+    'gclid',
+    'igshid',
+    'mkt_tok',
+    'ref',
+    'source',
+]);
+
+function normalizeGuid(guid: string): string {
+    return guid.trim();
+}
+
+function normalizeUrl(url: string): string {
+    const raw = url.trim();
+    if (!raw) return '';
+
+    try {
+        const parsed = new URL(raw);
+        const keptParams = new URLSearchParams();
+
+        for (const [key, value] of parsed.searchParams.entries()) {
+            const lowerKey = key.toLowerCase();
+            const hasTrackingPrefix = TRACKING_PARAM_PREFIXES.some((prefix) =>
+                lowerKey.startsWith(prefix)
+            );
+
+            if (hasTrackingPrefix || TRACKING_PARAMS.has(lowerKey)) {
+                continue;
+            }
+            keptParams.append(key, value);
+        }
+
+        const pathname = parsed.pathname.replace(/\/+$/, '') || '/';
+        const query = keptParams.toString();
+        return `${parsed.origin}${pathname}${query ? `?${query}` : ''}`;
+    } catch {
+        return raw;
+    }
+}
+
+function buildFallbackGuid(title: string, publishedAt: string): string {
+    const normalizedTitle = title.trim().toLowerCase().replace(/\s+/g, ' ').slice(0, 200);
+    return `fallback:${normalizedTitle}:${publishedAt.trim()}`;
+}
+
 /**
  * Bulk creates articles from RSS feed data.
- * Skips articles that already exist (based on guid).
+ * Skips articles that already exist (source + guid/url fallback keys).
  * Returns only NEW article IDs (not existing ones).
  */
 export const bulkCreateArticles = internalMutation({
@@ -24,23 +71,47 @@ export const bulkCreateArticles = internalMutation({
         const newArticleIds: Id<'articles'>[] = [];
 
         for (const article of args.articles) {
-            // Check if article already exists using index
-            const existingArticle = await ctx.db
+            const normalizedTitle = article.title.trim() || 'Untitled';
+            const normalizedUrl = normalizeUrl(article.url);
+            const normalizedGuid = normalizeGuid(article.guid);
+            const effectiveGuid =
+                normalizedGuid ||
+                normalizedUrl ||
+                buildFallbackGuid(normalizedTitle, article.publishedAt);
+
+            // First pass dedup: source + guid (guid may be source-provided or deterministic fallback)
+            const existingByGuid = await ctx.db
                 .query('articles')
-                .withIndex('byGuid', (q) => q.eq('guid', article.guid))
+                .withIndex('bySourceIdAndGuid', (q) =>
+                    q.eq('sourceId', article.sourceId).eq('guid', effectiveGuid)
+                )
                 .first();
 
-            if (existingArticle) {
-                continue; // Skip existing articles
+            if (existingByGuid) {
+                continue;
+            }
+
+            // Second pass dedup: source + normalized URL when URL is available.
+            if (normalizedUrl) {
+                const existingByUrl = await ctx.db
+                    .query('articles')
+                    .withIndex('bySourceIdAndUrl', (q) =>
+                        q.eq('sourceId', article.sourceId).eq('url', normalizedUrl)
+                    )
+                    .first();
+
+                if (existingByUrl) {
+                    continue;
+                }
             }
 
             // Create new article
             const id = await ctx.db.insert('articles', {
-                title: article.title,
-                url: article.url,
+                title: normalizedTitle,
+                url: normalizedUrl || article.url.trim(),
                 sourceId: article.sourceId,
                 publishedAt: article.publishedAt,
-                guid: article.guid,
+                guid: effectiveGuid,
                 status: ArticleStatus.PENDING,
             });
 

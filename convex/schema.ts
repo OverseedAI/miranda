@@ -70,6 +70,8 @@ export default defineSchema({
         .index('byStatus', ['status'])
         .index('byGuid', ['guid'])
         .index('bySourceId', ['sourceId'])
+        .index('bySourceIdAndGuid', ['sourceId', 'guid'])
+        .index('bySourceIdAndUrl', ['sourceId', 'url'])
         .searchIndex('searchTitle', { searchField: 'title' }),
     systemSettings: defineTable({
         key: v.string(),
