@@ -45,14 +45,14 @@ export const videoAnalyzerPrompt = (article: {
     title: string;
     url: string;
     publishedAt: string;
-    summary?: string;
+    content?: string;
 }) => `Analyze this article for YouTube video potential targeting software developers interested in AI:
 
 Title: ${article.title}
 URL: ${article.url}
 Published: ${article.publishedAt}
 
-Content:
-${article.summary || 'No content available - analyze based on title only'}
+Article Content:
+${article.content || 'No extracted content available. Analyze using title and source context only.'}
 
 Respond with the JSON analysis.`;

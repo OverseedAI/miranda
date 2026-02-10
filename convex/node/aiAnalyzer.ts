@@ -99,6 +99,20 @@ export const analyzeArticle = internalAction({
             message: `Analyzing article: ${article.title}`,
         });
 
+        const extractedContent = article.extractedContent?.trim() || '';
+        const legacySummary = article.summary?.trim() || '';
+        const analysisContent = extractedContent || legacySummary;
+        const analysisSource = extractedContent
+            ? 'extractedContent'
+            : legacySummary
+              ? 'legacySummary'
+              : 'titleOnly';
+
+        await ctx.runMutation(internal.services.logs.createLog, {
+            scanId,
+            message: `Analyzer input source: ${analysisSource}`,
+        });
+
         try {
             // Use AI agent to analyze the article
             const threadId = await createThread(ctx, components.agent);
@@ -110,7 +124,7 @@ export const analyzeArticle = internalAction({
                         title: article.title,
                         url: article.url,
                         publishedAt: article.publishedAt,
-                        summary: article.summary,
+                        content: analysisContent,
                     }),
                 },
                 {
