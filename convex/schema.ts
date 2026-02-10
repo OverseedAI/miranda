@@ -64,6 +64,7 @@ export default defineSchema({
         // AI recommendation
         recommendation: v.optional(v.string()),
         videoAngle: v.optional(v.string()),
+        analyzerPromptVersion: v.optional(v.number()),
         // Slack notification tracking
         slackNotifiedAt: v.optional(v.string()),
     })

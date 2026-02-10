@@ -196,6 +196,7 @@ export const updateArticleAnalysis = internalMutation({
         }),
         recommendation: v.string(),
         videoAngle: v.string(),
+        promptVersion: v.optional(v.number()),
         status: v.string(),
     },
     handler: async (ctx, args) => {
@@ -204,6 +205,7 @@ export const updateArticleAnalysis = internalMutation({
             score: args.score,
             recommendation: args.recommendation,
             videoAngle: args.videoAngle,
+            analyzerPromptVersion: args.promptVersion,
             status: args.status,
         });
     },

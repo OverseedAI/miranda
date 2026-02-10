@@ -6,7 +6,12 @@ import { components, internal } from '../_generated/api';
 import { Agent, createThread } from '@convex-dev/agent';
 import { openai } from '@ai-sdk/openai';
 import type { Id } from '../_generated/dataModel';
-import { VIDEO_ANALYZER_INSTRUCTIONS, videoAnalyzerPrompt } from '../prompts';
+import {
+    DEFAULT_VIDEO_ANALYZER_PROMPT_CONFIG,
+    normalizeVideoAnalyzerPromptConfig,
+    VIDEO_ANALYZER_INSTRUCTIONS,
+    videoAnalyzerPrompt,
+} from '../prompts';
 import { createUsageHandler } from './usage';
 
 type AnalysisResult =
@@ -107,10 +112,16 @@ export const analyzeArticle = internalAction({
             : legacySummary
               ? 'legacySummary'
               : 'titleOnly';
+        const promptConfigRaw = await ctx.runQuery(internal.services.settings.getSettingInternal, {
+            key: 'aiAnalyzer.promptConfig',
+        });
+        const promptConfig = normalizeVideoAnalyzerPromptConfig(
+            promptConfigRaw ?? DEFAULT_VIDEO_ANALYZER_PROMPT_CONFIG
+        );
 
         await ctx.runMutation(internal.services.logs.createLog, {
             scanId,
-            message: `Analyzer input source: ${analysisSource}`,
+            message: `Analyzer input source: ${analysisSource} (prompt v${promptConfig.version})`,
         });
 
         try {
@@ -125,7 +136,7 @@ export const analyzeArticle = internalAction({
                         url: article.url,
                         publishedAt: article.publishedAt,
                         content: analysisContent,
-                    }),
+                    }, promptConfig),
                 },
                 {
                     usageHandler: createUsageHandler({
@@ -155,6 +166,7 @@ export const analyzeArticle = internalAction({
                     },
                     recommendation: scores.recommendation || 'maybe',
                     videoAngle: scores.videoAngle || '',
+                    promptVersion: promptConfig.version,
                     status: 'completed',
                 });
 

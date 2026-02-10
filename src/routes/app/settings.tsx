@@ -4,6 +4,7 @@ import { useAction, useMutation, useQuery } from 'convex/react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
@@ -15,12 +16,83 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import { IconClockHour4, IconBrandSlack, IconRefresh, IconSend, IconCheck, IconX } from '@tabler/icons-react';
+import { IconClockHour4, IconBrandSlack, IconRefresh, IconSend, IconCheck, IconX, IconSparkles } from '@tabler/icons-react';
 import { useState, useEffect } from 'react';
 
 export const Route = createFileRoute('/app/settings')({
     component: RouteComponent,
 });
+
+type AnalyzerPromptConfig = {
+    version: number;
+    focusAreas: string[];
+    recommendationGuidelines: string[];
+    styleNotes: string;
+};
+
+const DEFAULT_ANALYZER_PROMPT_CONFIG: AnalyzerPromptConfig = {
+    version: 1,
+    focusAreas: [
+        'AI coding tools and workflows',
+        'Major model releases and updates',
+        'Best practices for AI-assisted development',
+        'AI impact on software jobs and economics',
+        'AI infrastructure and compute economics',
+        'Agentic AI systems for software engineering',
+        'Practical build tutorials for developers',
+    ],
+    recommendationGuidelines: [
+        'highly_recommended: major breaking updates or highly actionable content',
+        'recommended: useful updates, strong trends, or quality tutorial content',
+        'maybe: partially relevant or already saturated angle',
+        'not_recommended: off-topic or low relevance for AI software development',
+    ],
+    styleNotes:
+        'Prioritize practical insights for software engineers and specific implications for building products.',
+};
+
+function parseMultilineList(value: string): string[] {
+    return value
+        .split('\n')
+        .map((line) => line.trim())
+        .filter((line) => line.length > 0);
+}
+
+function normalizeAnalyzerPromptConfig(value: unknown): AnalyzerPromptConfig {
+    if (!value || typeof value !== 'object') {
+        return DEFAULT_ANALYZER_PROMPT_CONFIG;
+    }
+
+    const config = value as Partial<AnalyzerPromptConfig>;
+    const parsedVersion = Number(config.version);
+    const version =
+        Number.isInteger(parsedVersion) && parsedVersion > 0
+            ? parsedVersion
+            : DEFAULT_ANALYZER_PROMPT_CONFIG.version;
+
+    const focusAreas =
+        Array.isArray(config.focusAreas) && config.focusAreas.length > 0
+            ? config.focusAreas.filter((line): line is string => typeof line === 'string')
+            : DEFAULT_ANALYZER_PROMPT_CONFIG.focusAreas;
+    const recommendationGuidelines =
+        Array.isArray(config.recommendationGuidelines) &&
+        config.recommendationGuidelines.length > 0
+            ? config.recommendationGuidelines.filter(
+                  (line): line is string => typeof line === 'string'
+              )
+            : DEFAULT_ANALYZER_PROMPT_CONFIG.recommendationGuidelines;
+    const styleNotes =
+        typeof config.styleNotes === 'string' && config.styleNotes.trim().length > 0
+            ? config.styleNotes
+            : DEFAULT_ANALYZER_PROMPT_CONFIG.styleNotes;
+
+    return {
+        version,
+        focusAreas,
+        recommendationGuidelines,
+        styleNotes,
+    };
+}
 
 // Setting keys
 const SETTINGS_KEYS = [
@@ -33,6 +105,7 @@ const SETTINGS_KEYS = [
     'slack.channelId',
     'slack.notifyIntervalMinutes',
     'slack.topArticleCount',
+    'aiAnalyzer.promptConfig',
 ] as const;
 
 // Default values
@@ -46,6 +119,7 @@ const DEFAULTS: Record<string, unknown> = {
     'slack.channelId': '',
     'slack.notifyIntervalMinutes': 60,
     'slack.topArticleCount': 5,
+    'aiAnalyzer.promptConfig': DEFAULT_ANALYZER_PROMPT_CONFIG,
 };
 
 function RouteComponent() {
@@ -67,8 +141,21 @@ function RouteComponent() {
         return (settings[key] ?? DEFAULTS[key]) as T;
     };
 
+    const promptConfig = normalizeAnalyzerPromptConfig(getValue<unknown>('aiAnalyzer.promptConfig'));
+
     const handleChange = async (key: string, value: unknown) => {
         await setSetting({ key, value });
+    };
+
+    const updatePromptConfig = async (patch: Partial<AnalyzerPromptConfig>) => {
+        await handleChange('aiAnalyzer.promptConfig', {
+            ...promptConfig,
+            ...patch,
+        });
+    };
+
+    const resetPromptConfig = async () => {
+        await handleChange('aiAnalyzer.promptConfig', DEFAULT_ANALYZER_PROMPT_CONFIG);
     };
 
     const fetchChannels = async () => {
@@ -272,6 +359,103 @@ function RouteComponent() {
                                     ? 'All feeds will be scanned'
                                     : 'Only feeds with selected tags will be scanned'}
                             </p>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader>
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-md bg-emerald-500/10 flex items-center justify-center">
+                                <IconSparkles className="size-5 text-emerald-500" />
+                            </div>
+                            <div>
+                                <CardTitle>AI Analyzer Prompt</CardTitle>
+                                <CardDescription>
+                                    Adjust analysis focus while keeping strict structured output
+                                </CardDescription>
+                            </div>
+                        </div>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                        <div className="grid gap-2">
+                            <Label htmlFor="aiAnalyzer.promptVersion">Prompt Version</Label>
+                            <Input
+                                id="aiAnalyzer.promptVersion"
+                                type="number"
+                                min={1}
+                                className="w-24"
+                                value={promptConfig.version}
+                                onChange={(e) =>
+                                    updatePromptConfig({
+                                        version: Math.max(1, Number(e.target.value) || 1),
+                                    })
+                                }
+                            />
+                            <p className="text-sm text-muted-foreground">
+                                Stored on analyzed articles for traceability.
+                            </p>
+                        </div>
+
+                        <div className="grid gap-2">
+                            <Label htmlFor="aiAnalyzer.focusAreas">Focus Areas</Label>
+                            <Textarea
+                                id="aiAnalyzer.focusAreas"
+                                rows={6}
+                                value={promptConfig.focusAreas.join('\n')}
+                                onChange={(e) =>
+                                    updatePromptConfig({
+                                        focusAreas: parseMultilineList(e.target.value),
+                                    })
+                                }
+                            />
+                            <p className="text-sm text-muted-foreground">
+                                One focus area per line.
+                            </p>
+                        </div>
+
+                        <div className="grid gap-2">
+                            <Label htmlFor="aiAnalyzer.recommendationGuidelines">
+                                Recommendation Rubric
+                            </Label>
+                            <Textarea
+                                id="aiAnalyzer.recommendationGuidelines"
+                                rows={6}
+                                value={promptConfig.recommendationGuidelines.join('\n')}
+                                onChange={(e) =>
+                                    updatePromptConfig({
+                                        recommendationGuidelines: parseMultilineList(
+                                            e.target.value
+                                        ),
+                                    })
+                                }
+                            />
+                            <p className="text-sm text-muted-foreground">
+                                One rubric rule per line.
+                            </p>
+                        </div>
+
+                        <div className="grid gap-2">
+                            <Label htmlFor="aiAnalyzer.styleNotes">Style Notes</Label>
+                            <Textarea
+                                id="aiAnalyzer.styleNotes"
+                                rows={4}
+                                value={promptConfig.styleNotes}
+                                onChange={(e) =>
+                                    updatePromptConfig({
+                                        styleNotes: e.target.value,
+                                    })
+                                }
+                            />
+                            <p className="text-sm text-muted-foreground">
+                                Extra guidance for tone and framing.
+                            </p>
+                        </div>
+
+                        <div className="flex justify-end">
+                            <Button variant="outline" onClick={resetPromptConfig}>
+                                Reset to Default
+                            </Button>
                         </div>
                     </CardContent>
                 </Card>
