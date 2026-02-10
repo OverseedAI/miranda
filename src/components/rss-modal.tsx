@@ -40,6 +40,98 @@ type RssModalProps = {
     editFeed?: RssFeed | null;
 };
 
+type BulkFeedInput = {
+    name: string;
+    xmlUrl: string;
+    htmlUrl: string;
+    type: string;
+};
+
+const STARTER_AI_FEEDS: BulkFeedInput[] = [
+    {
+        name: 'OpenAI News',
+        xmlUrl: 'https://openai.com/news/rss.xml',
+        htmlUrl: 'https://openai.com/news',
+        type: 'rss',
+    },
+    {
+        name: 'Microsoft Azure Blog',
+        xmlUrl: 'https://azure.microsoft.com/en-us/blog/feed/',
+        htmlUrl: 'https://azure.microsoft.com/en-us/blog/',
+        type: 'rss',
+    },
+    {
+        name: 'Microsoft DevBlogs',
+        xmlUrl: 'https://devblogs.microsoft.com/feed/',
+        htmlUrl: 'https://devblogs.microsoft.com/',
+        type: 'rss',
+    },
+    {
+        name: 'Microsoft Research Blog',
+        xmlUrl: 'https://www.microsoft.com/en-us/research/feed/',
+        htmlUrl: 'https://www.microsoft.com/en-us/research/blog/',
+        type: 'rss',
+    },
+    {
+        name: 'Google AI Blog',
+        xmlUrl: 'https://blog.google/technology/ai/rss/',
+        htmlUrl: 'https://blog.google/technology/ai/',
+        type: 'rss',
+    },
+    {
+        name: 'Google DeepMind Blog',
+        xmlUrl: 'https://deepmind.google/blog/rss.xml',
+        htmlUrl: 'https://deepmind.google/discover/blog/',
+        type: 'rss',
+    },
+    {
+        name: 'Google Research Blog',
+        xmlUrl: 'https://research.google/blog/rss/',
+        htmlUrl: 'https://research.google/blog/',
+        type: 'rss',
+    },
+    {
+        name: 'AWS Machine Learning Blog',
+        xmlUrl: 'https://aws.amazon.com/blogs/machine-learning/feed/',
+        htmlUrl: 'https://aws.amazon.com/blogs/machine-learning/',
+        type: 'rss',
+    },
+    {
+        name: 'Meta Engineering',
+        xmlUrl: 'https://engineering.fb.com/feed/',
+        htmlUrl: 'https://engineering.fb.com/',
+        type: 'rss',
+    },
+    {
+        name: 'NVIDIA Developer Blog',
+        xmlUrl: 'https://developer.nvidia.com/blog/feed/',
+        htmlUrl: 'https://developer.nvidia.com/blog/',
+        type: 'atom',
+    },
+    {
+        name: 'Hugging Face Blog',
+        xmlUrl: 'https://huggingface.co/blog/feed.xml',
+        htmlUrl: 'https://huggingface.co/blog',
+        type: 'rss',
+    },
+    {
+        name: 'GitHub Blog AI',
+        xmlUrl: 'https://github.blog/tag/artificial-intelligence/feed/',
+        htmlUrl: 'https://github.blog/tag/artificial-intelligence/',
+        type: 'rss',
+    },
+    {
+        name: 'GitHub Changelog',
+        xmlUrl: 'https://github.blog/changelog/feed/',
+        htmlUrl: 'https://github.blog/changelog/',
+        type: 'rss',
+    },
+];
+
+function formatFeedsForBulkInput(feeds: BulkFeedInput[]) {
+    return feeds.map((feed) => `${feed.name}, ${feed.xmlUrl}, ${feed.htmlUrl}`).join('\n');
+}
+
 export function RssModal({ open, onOpenChange, editFeed }: RssModalProps) {
     const createRss = useMutation(api.services.rss.createRss);
     const updateRss = useMutation(api.services.rss.updateRss);
@@ -59,6 +151,7 @@ export function RssModal({ open, onOpenChange, editFeed }: RssModalProps) {
     // Bulk import state
     const [bulkText, setBulkText] = useState('');
     const [bulkError, setBulkError] = useState<string | null>(null);
+    const [bulkNotice, setBulkNotice] = useState<string | null>(null);
 
     const isEditing = !!editFeed;
 
@@ -80,6 +173,7 @@ export function RssModal({ open, onOpenChange, editFeed }: RssModalProps) {
                 setTags([]);
                 setBulkText('');
                 setBulkError(null);
+                setBulkNotice(null);
             }
         }
     }, [open, editFeed]);
@@ -172,26 +266,57 @@ export function RssModal({ open, onOpenChange, editFeed }: RssModalProps) {
 
         if (errors.length > 0) {
             setBulkError(errors.join('\n'));
+            setBulkNotice(null);
             return;
         }
 
         if (feeds.length === 0) {
             setBulkError('No valid feeds found');
+            setBulkNotice(null);
             return;
         }
 
         setIsSubmitting(true);
         setBulkError(null);
+        setBulkNotice(null);
 
         try {
             const ids = await bulkCreateRss({ feeds });
             const skipped = feeds.length - ids.length;
             if (skipped > 0) {
-                setBulkError(`Added ${ids.length} feeds. ${skipped} were skipped (already exist).`);
+                setBulkNotice(`Added ${ids.length} feeds. ${skipped} were skipped (already exist).`);
             }
             if (ids.length > 0) {
                 onOpenChange(false);
             }
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    const handleLoadStarterFeeds = () => {
+        setBulkText(formatFeedsForBulkInput(STARTER_AI_FEEDS));
+        setBulkError(null);
+        setBulkNotice(
+            `Loaded ${STARTER_AI_FEEDS.length} curated AI feeds. Review and click "Import Feeds".`
+        );
+    };
+
+    const handleImportStarterFeeds = async () => {
+        setIsSubmitting(true);
+        setBulkError(null);
+        setBulkNotice(null);
+
+        try {
+            const ids = await bulkCreateRss({ feeds: STARTER_AI_FEEDS });
+            const skipped = STARTER_AI_FEEDS.length - ids.length;
+
+            if (ids.length === 0) {
+                setBulkNotice('Starter feed pack already exists. No new feeds were added.');
+                return;
+            }
+
+            setBulkNotice(`Imported ${ids.length} starter feeds. ${skipped} duplicates were skipped.`);
         } finally {
             setIsSubmitting(false);
         }
@@ -249,6 +374,42 @@ export function RssModal({ open, onOpenChange, editFeed }: RssModalProps) {
                         </TabsContent>
                         <TabsContent value="bulk" className="mt-4">
                             <div className="space-y-4">
+                                <div className="rounded-md border bg-muted/40 p-3 space-y-2">
+                                    <div className="flex flex-wrap items-center justify-between gap-2">
+                                        <div>
+                                            <p className="text-sm font-medium">
+                                                AI Starter Feed Pack ({STARTER_AI_FEEDS.length} feeds)
+                                            </p>
+                                            <p className="text-xs text-muted-foreground">
+                                                Verified official sources for AI labs, cloud vendors, and dev
+                                                platforms.
+                                            </p>
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={handleLoadStarterFeeds}
+                                                disabled={isSubmitting}
+                                            >
+                                                Load into Editor
+                                            </Button>
+                                            <Button
+                                                type="button"
+                                                size="sm"
+                                                onClick={handleImportStarterFeeds}
+                                                disabled={isSubmitting}
+                                            >
+                                                {isSubmitting ? 'Importing...' : 'One-Click Import'}
+                                            </Button>
+                                        </div>
+                                    </div>
+                                    <p className="text-xs text-muted-foreground">
+                                        Anthropic currently does not expose an official RSS feed URL.
+                                    </p>
+                                </div>
+
                                 <div className="space-y-2">
                                     <Label htmlFor="bulk">Feed URLs</Label>
                                     <Textarea
@@ -258,6 +419,7 @@ export function RssModal({ open, onOpenChange, editFeed }: RssModalProps) {
                                         onChange={(e) => {
                                             setBulkText(e.target.value);
                                             setBulkError(null);
+                                            setBulkNotice(null);
                                         }}
                                         rows={8}
                                         className="font-mono text-sm"
@@ -268,6 +430,11 @@ export function RssModal({ open, onOpenChange, editFeed }: RssModalProps) {
                                 </div>
                                 {bulkError && (
                                     <p className="text-sm text-destructive whitespace-pre-wrap">{bulkError}</p>
+                                )}
+                                {bulkNotice && (
+                                    <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                                        {bulkNotice}
+                                    </p>
                                 )}
                             </div>
                         </TabsContent>
