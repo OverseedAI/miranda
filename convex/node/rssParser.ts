@@ -23,6 +23,8 @@ type ParseFeedsResult = {
 
 const DEFAULT_DAYS_BACK = 7;
 const DEFAULT_PARALLELISM = 3;
+const UNDATED_ITEM_FALLBACK_LIMIT = 10;
+const DEFAULT_UNDATED_PUBLISHED_AT = '1970-01-01T00:00:00.000Z';
 
 /**
  * Parses RSS feeds and creates articles in the database.
@@ -162,8 +164,38 @@ export const parseFeeds = internalAction({
 });
 
 /**
+ * Attempts to parse a date from common RSS/Atom date fields.
+ */
+function getPublishedDate(item: Parser.Item): Date | null {
+    const dynamicItem = item as Record<string, unknown>;
+    const candidates = [
+        item.isoDate,
+        item.pubDate,
+        dynamicItem.published,
+        dynamicItem.updated,
+        dynamicItem.date,
+        dynamicItem['dc:date'],
+        dynamicItem.published_at,
+    ];
+
+    for (const candidate of candidates) {
+        if (typeof candidate !== 'string' || candidate.trim() === '') {
+            continue;
+        }
+
+        const parsed = new Date(candidate);
+        if (!Number.isNaN(parsed.getTime())) {
+            return parsed;
+        }
+    }
+
+    return null;
+}
+
+/**
  * Extracts articles from parsed RSS feed data.
- * Filters to only include articles from the specified number of days back.
+ * Filters articles by date where available.
+ * For undated items, includes the first N items as a deterministic fallback.
  */
 function extractArticles(
     feed: Doc<'rss'>,
@@ -171,17 +203,27 @@ function extractArticles(
     daysBack: number
 ): Article[] {
     const cutoffDate = new Date(Date.now() - daysBack * 24 * 60 * 60 * 1000);
+    const articles: Article[] = [];
 
-    return feedData.items
-        .filter((item) => {
-            const date = item.pubDate ? new Date(item.pubDate) : null;
-            return date && date >= cutoffDate;
-        })
-        .map((item) => ({
+    feedData.items.forEach((item, index) => {
+        const publishedDate = getPublishedDate(item);
+        const includeUndatedByFallback = !publishedDate && index < UNDATED_ITEM_FALLBACK_LIMIT;
+        const includeDatedItem = !!publishedDate && publishedDate >= cutoffDate;
+
+        if (!includeDatedItem && !includeUndatedByFallback) {
+            return;
+        }
+
+        articles.push({
             title: item.title || 'No title',
             url: item.link || '',
-            publishedAt: item.pubDate || new Date().toISOString(),
+            publishedAt: publishedDate
+                ? publishedDate.toISOString()
+                : DEFAULT_UNDATED_PUBLISHED_AT,
             sourceId: feed._id,
             guid: item.guid || item.link || '',
-        }));
+        });
+    });
+
+    return articles;
 }
