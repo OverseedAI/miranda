@@ -395,20 +395,33 @@ export const getUnnotifiedRecommendedArticles = internalQuery({
         limit: v.number(),
     },
     handler: async (ctx, args) => {
-        const articles = await ctx.db
+        const candidateLimit = Math.max(args.limit * 3, args.limit);
+
+        const unnotifiedHighlyRecommended = await ctx.db
             .query('articles')
-            .withIndex('byStatus', (q) => q.eq('status', ArticleStatus.COMPLETED))
-            .collect();
+            .withIndex('byStatusRecommendationSlackNotified', (q) =>
+                q.eq('status', ArticleStatus.COMPLETED)
+                    .eq('recommendation', 'highly_recommended')
+                    .eq('slackNotifiedAt', undefined)
+            )
+            .order('desc')
+            .take(candidateLimit);
 
-        // Filter to recommended articles that haven't been notified
-        const filtered = articles.filter((a) => {
-            if (!a.score) return false;
-            if (a.slackNotifiedAt) return false;
-            return a.recommendation === 'highly_recommended' || a.recommendation === 'recommended';
-        });
+        const unnotifiedRecommended = await ctx.db
+            .query('articles')
+            .withIndex('byStatusRecommendationSlackNotified', (q) =>
+                q.eq('status', ArticleStatus.COMPLETED)
+                    .eq('recommendation', 'recommended')
+                    .eq('slackNotifiedAt', undefined)
+            )
+            .order('desc')
+            .take(candidateLimit);
 
-        // Sort by average score descending
-        const sorted = filtered.sort((a, b) => {
+        const combined = [...unnotifiedHighlyRecommended, ...unnotifiedRecommended];
+        const scoredOnly = combined.filter((article) => article.score);
+
+        // Keep score ranking as the final priority for digest quality.
+        const sorted = scoredOnly.sort((a, b) => {
             const avgA = a.score
                 ? (a.score.relevance + a.score.uniqueness + a.score.engagement + a.score.credibility) / 4
                 : 0;

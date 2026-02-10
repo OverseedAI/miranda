@@ -72,6 +72,7 @@ export default defineSchema({
         .index('bySourceId', ['sourceId'])
         .index('bySourceIdAndGuid', ['sourceId', 'guid'])
         .index('bySourceIdAndUrl', ['sourceId', 'url'])
+        .index('byStatusRecommendationSlackNotified', ['status', 'recommendation', 'slackNotifiedAt'])
         .searchIndex('searchTitle', { searchField: 'title' }),
     systemSettings: defineTable({
         key: v.string(),
